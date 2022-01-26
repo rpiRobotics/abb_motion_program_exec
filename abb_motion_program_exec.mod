@@ -1,10 +1,20 @@
 MODULE motion_program_exec
       
+    RECORD motion_program_state_type
+        bool running;
+        num current_cmd_num;
+        string motion_program_filename; 
+        num clk_time;
+        jointtarget joint_position;
+    ENDRECORD
+
     PERS motion_program_state_type motion_program_state;
    
     LOCAL VAR iodev motion_program_io_device;
     LOCAL VAR rawbytes motion_program_bytes;
     LOCAL VAR num motion_program_bytes_offset;
+    
+    PERS tooldata motion_program_tool;
         
     PROC main()
         VAR zonedata z := fine;
@@ -23,8 +33,22 @@ MODULE motion_program_exec
     ENDPROC
     
     PROC open_motion_program_file(string filename)
+        VAR num ver;
+        VAR tooldata mtool;
         motion_program_state.motion_program_filename:=filename;
         Open "TEMP:" \File:=filename, motion_program_io_device, \Read \Bin;
+        IF NOT try_motion_program_read_num(ver) THEN
+            RAISE ERR_FILESIZE;
+        ENDIF
+        
+        IF ver <> 10002 THEN
+            RAISE ERR_WRONGVAL;
+        ENDIF
+        
+        IF NOT try_motion_program_read_td(mtool) THEN
+            RAISE ERR_FILESIZE;
+        ENDIF
+        motion_program_tool:=mtool;
     ENDPROC
     
     PROC close_motion_program_file()
@@ -92,7 +116,7 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        MoveAbsJ j, sd, zd, tool0;
+        MoveAbsJ j, sd, zd, motion_program_tool;
         RETURN TRUE;
         
     ENDFUNC
@@ -108,7 +132,7 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        MoveJ rt, sd, zd, tool0;
+        MoveJ rt, sd, zd, motion_program_tool;
         RETURN TRUE;
         
     ENDFUNC
@@ -124,7 +148,7 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        MoveL rt, sd, zd, tool0;
+        MoveL rt, sd, zd, motion_program_tool;
         RETURN TRUE;
         
     ENDFUNC
@@ -142,7 +166,7 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        MoveC rt1, rt2, sd, zd, tool0;
+        MoveC rt1, rt2, sd, zd, motion_program_tool;
         RETURN TRUE;
         
     ENDFUNC
@@ -227,6 +251,36 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
+        RETURN TRUE;
+    ENDFUNC
+    
+    FUNC bool try_motion_program_read_td(INOUT tooldata td)
+        VAR num robhold_num;
+        IF NOT (
+            try_motion_program_read_num(robhold_num)
+            AND try_motion_program_read_num(td.tframe.trans.x)
+            AND try_motion_program_read_num(td.tframe.trans.y)
+            AND try_motion_program_read_num(td.tframe.trans.z)
+            AND try_motion_program_read_num(td.tframe.rot.q1)
+            AND try_motion_program_read_num(td.tframe.rot.q2)
+            AND try_motion_program_read_num(td.tframe.rot.q3)
+            AND try_motion_program_read_num(td.tframe.rot.q4)
+            AND try_motion_program_read_num(td.tload.mass)
+            AND try_motion_program_read_num(td.tload.cog.x)
+            AND try_motion_program_read_num(td.tload.cog.y)
+            AND try_motion_program_read_num(td.tload.cog.z)
+            AND try_motion_program_read_num(td.tload.aom.q1)
+            AND try_motion_program_read_num(td.tload.aom.q2)
+            AND try_motion_program_read_num(td.tload.aom.q3)
+            AND try_motion_program_read_num(td.tload.aom.q4)
+            AND try_motion_program_read_num(td.tload.ix)
+            AND try_motion_program_read_num(td.tload.iy)
+            AND try_motion_program_read_num(td.tload.iz)
+        )
+        THEN
+            RETURN FALSE;
+        ENDIF
+        td.robhold := robhold_num <> 0;
         RETURN TRUE;
     ENDFUNC
     

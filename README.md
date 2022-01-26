@@ -38,9 +38,19 @@ the following commands of interest:
 
 Calling each of these functions adds the command to the sequence.
 
+The constructor for `MotionProgram` optionally takes a `tool` parameter.
+This parameter is expected to be type `tooldata` and will be passed
+to each of the move commands. Because the tool is expected to be a
+`PERS` type by the ABB software, it can't be modified for each
+motion command without a significant performance penalty.
+
+```python
+my_motion_program = MotionProgram(tool=my_tool)
+```
+
 The following types are defined as subclasses of `NamedTuple`:
 
-```
+```python
 class speeddata(NamedTuple):
     v_tcp: float
     v_ori: float
@@ -60,6 +70,10 @@ class jointtarget(NamedTuple):
     robax: np.ndarray # shape=(6,)
     extax: np.ndarray # shape=(6,)
 
+class pose(NamedTuple):
+    trans: np.ndarray # [x,y,z]
+    rot: np.ndarray # [qw,qx,qy,qz]
+
 class confdata(NamedTuple):
     cf1: float
     cf4: float
@@ -67,10 +81,22 @@ class confdata(NamedTuple):
     cfx: float
 
 class robtarget(NamedTuple):
-    trans: np.ndarray # [x,y,z]
-    rot: np.ndarray # [qw,qx,qy,qz]
+    tframe: pose
     robconf: confdata # 
     extax: np.ndarray # shape=(6,)
+
+class loaddata(NamedTuple):
+    mass: float
+    cog: np.ndarray # shape=(3,)
+    aom: np.ndarray # shape=(4,)
+    ix: float
+    iy: float
+    iz: float
+
+class tooldata(NamedTuple):
+    robhold: bool
+    tframe: pose
+    tload : loaddata
 
 ```
 
@@ -89,6 +115,7 @@ The following standard `zonedata` are available in the module:
 `fine`, `z0`, `z1`, `z5`, `z10`, `z15`, `z20`, `z30`, `z40`,
 `z50`, `z60`, `z80`, `z100`, `z150`, `z200`.
 
+The following `tooldata` are available in the module: `tool0`
 
 Once the program is complete, it can be executed on the robot using
 `MotionProgramExecClient`. The constructor is by default:
@@ -116,7 +143,9 @@ j1 = abb.jointtarget([10,20,30,40,50,60],[0]*6)
 j2 = abb.jointtarget([90,-91,60,-93,94,-95],[0]*6)
 j3 = abb.jointtarget([-80,81,-82,83,-84,85],[0]*6)
 
-mp = abb.MotionProgram()
+my_tool = abb.tooldata(True,abb.pose([0,0,0.1],[1,0,0,0]),abb.loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0)) 
+
+mp = abb.MotionProgram(tool=my_tool)
 mp.MoveAbsJ(j1,abb.v1000,abb.fine)
 mp.MoveAbsJ(j2,abb.v5000,abb.fine)
 mp.MoveAbsJ(j3,abb.v500,abb.fine)
@@ -125,12 +154,12 @@ mp.MoveAbsJ(j3,abb.v500,abb.z200)
 mp.MoveAbsJ(j2,abb.v5000,abb.fine)
 mp.WaitTime(1)
 
-r1 = abb.robtarget([0.1649235*1e3, 0.1169957*1e3, 0.9502961*1e3], [ 0.6776466, -0.09003431, 0.6362069, 0.3576725 ], abb.confdata(0,0,0,0),[0]*6)
-r2 = abb.robtarget([ 0.6243948*1e3, -0.479558*1e3 ,  0.7073749*1e3], [ 0.6065634, -0.2193409,  0.6427138, -0.4133877], abb.confdata(-1,-1,0,1),[0]*6)
+r1 = abb.robtarget(abb.pose([0.1649235*1e3, 0.1169957*1e3, 0.9502961*1e3], [ 0.6776466, -0.09003431, 0.6362069, 0.3576725 ]), abb.confdata(0,0,0,0),[0]*6)
+r2 = abb.robtarget(abb.pose([ 0.6243948*1e3, -0.479558*1e3 ,  0.7073749*1e3], [ 0.6065634, -0.2193409,  0.6427138, -0.4133877]), abb.confdata(-1,-1,0,1),[0]*6)
 
-r3 = abb.robtarget([417.9236, 276.9956, 885.2959], [ 0.8909725 , -0.1745558 ,  0.08864544,  0.4096832 ], abb.confdata( 0.,  1., -2.,  0.),[0]*6)
-r4 = abb.robtarget([417.9235 , -11.00438, 759.2958 ], [0.7161292 , 0.1868255 , 0.01720813, 0.6722789 ], abb.confdata( 0.,  2., -2.,  0.),[0]*6)
-r5 = abb.robtarget([ 417.9235, -173.0044,  876.2958], [0.6757616, 0.3854275, 0.2376617, 0.5816431], abb.confdata(-1.,  1., -1.,  0.),[0]*6)
+r3 = abb.robtarget(abb.pose([417.9236, 276.9956, 885.2959], [ 0.8909725 , -0.1745558 ,  0.08864544,  0.4096832 ]), abb.confdata( 0.,  1., -2.,  0.),[0]*6)
+r4 = abb.robtarget(abb.pose([417.9235 , -11.00438, 759.2958 ], [0.7161292 , 0.1868255 , 0.01720813, 0.6722789 ]), abb.confdata( 0.,  2., -2.,  0.),[0]*6)
+r5 = abb.robtarget(abb.pose([ 417.9235, -173.0044,  876.2958], [0.6757616, 0.3854275, 0.2376617, 0.5816431]), abb.confdata(-1.,  1., -1.,  0.),[0]*6)
 
 mp.MoveJ(r1,abb.v500,abb.fine)
 mp.MoveJ(r2,abb.v400,abb.fine)

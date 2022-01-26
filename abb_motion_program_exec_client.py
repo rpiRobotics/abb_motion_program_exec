@@ -84,6 +84,10 @@ class jointtarget(NamedTuple):
     robax: np.ndarray # shape=(6,)
     extax: np.ndarray # shape=(6,)
 
+class pose(NamedTuple):
+    trans: np.ndarray # [x,y,z]
+    rot: np.ndarray # [qw,qx,qy,qz]
+
 class confdata(NamedTuple):
     cf1: float
     cf4: float
@@ -91,10 +95,22 @@ class confdata(NamedTuple):
     cfx: float
 
 class robtarget(NamedTuple):
-    trans: np.ndarray # [x,y,z]
-    rot: np.ndarray # [qw,qx,qy,qz]
+    tframe: pose
     robconf: confdata # 
     extax: np.ndarray # shape=(6,)
+
+class loaddata(NamedTuple):
+    mass: float
+    cog: np.ndarray # shape=(3,)
+    aom: np.ndarray # shape=(4,)
+    ix: float
+    iy: float
+    iz: float
+
+class tooldata(NamedTuple):
+    robhold: bool
+    tframe: pose
+    tload : loaddata
 
 _speeddata_struct_fmt = struct.Struct("<4f")
 def _speeddata_to_bin(z: speeddata):
@@ -126,16 +142,19 @@ def _jointtarget_to_bin(j: jointtarget):
     e = _fix_array(j.extax,6).tolist()
     return _jointtarget_struct_fmt.pack(*r, *e)
 
+_pose_struct_fmt = struct.Struct("<7f")
+def _pose_to_bin(p: pose):
+    p1 = _fix_array(p.trans,3).tolist()
+    q = _fix_array(p.rot,4).tolist()
+    return _pose_struct_fmt.pack(*p1,*q)
+
 _confdata_struct_fmt = struct.Struct("<4f")
 def _confdata_to_bin(c: confdata):
     return _confdata_struct_fmt.pack(c.cf1, c.cf4, c.cf6, c.cfx)
 
-_robtarget_pose_struct_fmt = struct.Struct("<7f")
 _robtarget_extax_struct_fmt = struct.Struct("<6f")
 def _robtarget_to_bin(r: robtarget):
-    p = _fix_array(r.trans,3).tolist()
-    q = _fix_array(r.rot,4).tolist()
-    pose_bin = _robtarget_pose_struct_fmt.pack(*p,*q)
+    pose_bin = _pose_to_bin(r.tframe)
     robconf_bin = _confdata_to_bin(r.robconf)
     extax = _fix_array(r.extax,6).tolist()
     extax_bin = _robtarget_extax_struct_fmt.pack(*extax)
@@ -145,10 +164,32 @@ _num_struct_fmt = struct.Struct("<f")
 def _num_to_bin(f):
     return _num_struct_fmt.pack(f)
 
+_loaddata_struct_fmt = struct.Struct("<11f")
+def _loaddata_to_bin(l: loaddata):
+    cog = _fix_array(l.cog,3)
+    aom = _fix_array(l.aom,4)
+    return _loaddata_struct_fmt.pack(
+        l.mass, *cog, *aom, l.ix, l.iy, l.iz
+    )
+
+def _tooldata_to_bin(td: tooldata):
+    robhold_bin = _num_to_bin(0.0 if not td.robhold else 1.0)
+    tframe_bin = _pose_to_bin(td.tframe)
+    tload_bin = _loaddata_to_bin(td.tload)
+    return robhold_bin + tframe_bin + tload_bin
+
+# [[0, 0, 0], [1, 0, 0, 0]], [0.001, [0, 0, 0.001],[1, 0, 0, 0], 0, 0, 0]]
+
+tool0 = tooldata(True,pose([0,0,0],[1,0,0,0]),loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0))        
 
 class MotionProgram:
-    def __init__(self,first_cmd_num=1):
+    def __init__(self,first_cmd_num: int=1, tool: tooldata = None):
         self._f = io.BytesIO()
+        # Version number
+        self._f.write(_num_to_bin(10002))
+        if tool is None:
+            tool = tool0
+        self._f.write(_tooldata_to_bin(tool))
         self._cmd_num=first_cmd_num
 
     def MoveAbsJ(self, to_joint_pos: jointtarget, speed: speeddata, zone: zonedata):
@@ -357,12 +398,12 @@ def main():
     mp.MoveAbsJ(j2,v5000,fine)
     mp.WaitTime(1)
 
-    r1 = robtarget([0.1649235*1e3, 0.1169957*1e3, 0.9502961*1e3], [ 0.6776466, -0.09003431, 0.6362069, 0.3576725 ], confdata(0,0,0,0),[0]*6)
-    r2 = robtarget([ 0.6243948*1e3, -0.479558*1e3 ,  0.7073749*1e3], [ 0.6065634, -0.2193409,  0.6427138, -0.4133877], confdata(-1,-1,0,1),[0]*6)
+    r1 = robtarget(pose([0.1649235*1e3, 0.1169957*1e3, 0.9502961*1e3], [ 0.6776466, -0.09003431, 0.6362069, 0.3576725 ]), confdata(0,0,0,0),[0]*6)
+    r2 = robtarget(pose([ 0.6243948*1e3, -0.479558*1e3 ,  0.7073749*1e3], [ 0.6065634, -0.2193409,  0.6427138, -0.4133877]), confdata(-1,-1,0,1),[0]*6)
 
-    r3 = robtarget([417.9236, 276.9956, 885.2959], [ 0.8909725 , -0.1745558 ,  0.08864544,  0.4096832 ], confdata( 0.,  1., -2.,  0.),[0]*6)
-    r4 = robtarget([417.9235 , -11.00438, 759.2958 ], [0.7161292 , 0.1868255 , 0.01720813, 0.6722789 ], confdata( 0.,  2., -2.,  0.),[0]*6)
-    r5 = robtarget([ 417.9235, -173.0044,  876.2958], [0.6757616, 0.3854275, 0.2376617, 0.5816431], confdata(-1.,  1., -1.,  0.),[0]*6)
+    r3 = robtarget(pose([417.9236, 276.9956, 885.2959], [ 0.8909725 , -0.1745558 ,  0.08864544,  0.4096832 ]), confdata( 0.,  1., -2.,  0.),[0]*6)
+    r4 = robtarget(pose([417.9235 , -11.00438, 759.2958 ], [0.7161292 , 0.1868255 , 0.01720813, 0.6722789 ]), confdata( 0.,  2., -2.,  0.),[0]*6)
+    r5 = robtarget(pose([ 417.9235, -173.0044,  876.2958], [0.6757616, 0.3854275, 0.2376617, 0.5816431]), confdata(-1.,  1., -1.,  0.),[0]*6)
 
     mp.MoveJ(r1,v500,fine)
     mp.MoveJ(r2,v400,fine)
