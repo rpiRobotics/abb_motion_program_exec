@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from typing import NamedTuple, Any
+from typing import NamedTuple, Any, List
 import struct
 import numpy as np
 import io
@@ -178,7 +178,108 @@ def _tooldata_to_bin(td: tooldata):
     tload_bin = _loaddata_to_bin(td.tload)
     return robhold_bin + tframe_bin + tload_bin
 
-# [[0, 0, 0], [1, 0, 0, 0]], [0.001, [0, 0, 0.001],[1, 0, 0, 0], 0, 0, 0]]
+def _read_num(f: io.IOBase):
+    b = f.read(4)
+    return _num_struct_fmt.unpack(b)[0]
+
+def _read_nums(f: io.IOBase, n: int):
+    return [_read_num(f) for _ in range(n)]
+
+def _read_struct_io(f: io.IOBase, s: struct.Struct):
+    return s.unpack(f.read(s.size))
+
+def _nums_to_rapid_array(nums: List[float]):
+    return "[" + ", ".join([str(n) for n in nums]) + "]"
+
+def _read_struct_io_to_rapid_array(f: io.IOBase, s: struct.Struct):
+    nums = _read_struct_io(f,s)
+    return _nums_to_rapid_array(nums)
+
+def _speeddata_io_to_rapid(f: io.IOBase):
+    return _read_struct_io_to_rapid_array(f,_speeddata_struct_fmt)
+
+def _zonedata_io_to_rapid(f: io.IOBase):
+    nums =  list(_read_struct_io(f, _zonedata_struct_fmt))
+    nums[0] = "TRUE" if nums[0] != 0 else "FALSE"
+    return _nums_to_rapid_array(nums)
+
+def _jointtarget_io_to_rapid(f: io.IOBase):
+    nums = _read_struct_io(f,_jointtarget_struct_fmt)
+    return f"[{_nums_to_rapid_array(nums[:6])},{_nums_to_rapid_array(nums[6:])}]"
+
+def _pose_io_to_rapid(f: io.IOBase):
+    nums = _read_struct_io(f, _pose_struct_fmt)
+    return f"[{_nums_to_rapid_array(nums[:3])},{_nums_to_rapid_array(nums[3:])}]"
+
+def _confdata_io_to_rapid(f: io.IOBase):
+    return _read_struct_io_to_rapid_array(f, _confdata_struct_fmt)
+
+def _extax_io_to_rapid(f: io.IOBase):
+    return _read_struct_io_to_rapid_array(f, _robtarget_extax_struct_fmt)
+
+def _robtarget_io_to_rapid(f: io.IOBase):
+    pose_nums = _read_struct_io(f,_pose_struct_fmt)
+    trans_str = _nums_to_rapid_array(pose_nums[:3])
+    rot_str = _nums_to_rapid_array(pose_nums[3:])
+    robconf_str = _confdata_io_to_rapid(f)
+    extax_str = _extax_io_to_rapid(f)
+    return f"[{trans_str},{rot_str},{robconf_str},{extax_str}]"
+
+def _loaddata_io_to_rapid(f: io.IOBase):
+    nums = _read_struct_io(f, _loaddata_struct_fmt)
+    return f"[{nums[0]},{_nums_to_rapid_array(nums[1:4])},{_nums_to_rapid_array(nums[4:8])},{nums[8]},{nums[9]},{nums[10]}]"
+
+def _tooldata_io_to_rapid(f: io.IOBase):
+    robhold_num = _read_num(f)
+    robhold_str = "TRUE" if robhold_num != 0 else "FALSE"
+    tframe_str = _pose_io_to_rapid(f)
+    tload_str = _loaddata_io_to_rapid(f)
+    return f"[{robhold_str},{tframe_str},{tload_str}]"
+
+def _moveabsj_io_to_rapid(f: io.IOBase):
+    cmd_num = _read_num(f)
+    op = _read_num(f)
+    assert op == 0x1
+    to_joint_pos_str = _jointtarget_io_to_rapid(f)
+    speed_str = _speeddata_io_to_rapid(f)
+    zone_str = _zonedata_io_to_rapid(f)
+    return f"MoveAbsJ {to_joint_pos_str}, {speed_str}, {zone_str}, motion_program_tool;"
+
+def _movej_io_to_rapid(f: io.IOBase):
+    cmd_num = _read_num(f)
+    op = _read_num(f)
+    assert op == 0x2
+    to_point_str = _robtarget_io_to_rapid(f)
+    speed_str = _speeddata_io_to_rapid(f)
+    zone_str = _zonedata_io_to_rapid(f)
+    
+    return f"MoveJ {to_point_str}, {speed_str}, {zone_str}, motion_program_tool;"
+
+def _movel_io_to_rapid(f: io.IOBase):
+    cmd_num = _read_num(f)
+    op = _read_num(f)
+    assert op == 0x3
+    to_point_str = _robtarget_io_to_rapid(f)
+    speed_str = _speeddata_io_to_rapid(f)
+    zone_str = _zonedata_io_to_rapid(f)
+    return f"MoveL {to_point_str}, {speed_str}, {zone_str}, motion_program_tool;"
+
+def _movec_io_to_rapid(f: io.IOBase):
+    cmd_num = _read_num(f)
+    op = _read_num(f)
+    assert op == 0x4
+    cir_point_str = _robtarget_io_to_rapid(f)
+    to_point_str = _robtarget_io_to_rapid(f)
+    speed_str = _speeddata_io_to_rapid(f)
+    zone_str = _zonedata_io_to_rapid(f)
+    return f"MoveC {cir_point_str}, {to_point_str}, {speed_str}, {zone_str}, motion_program_tool;"
+
+def _waittime_io_to_rapid(f: io.IOBase):
+    cmd_num = _read_num(f)
+    op = _read_num(f)
+    assert op == 0x5
+    t = _read_num(f)
+    return f"WaitTime {t};"
 
 tool0 = tooldata(True,pose([0,0,0],[1,0,0,0]),loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0))        
 
@@ -248,6 +349,43 @@ class MotionProgram:
     def get_program_bytes(self):
         return self._f.getvalue()
 
+    def get_program_rapid(self, module_name="motion_program_exec_gen"):
+        program_bytes = self.get_program_bytes()
+        f = io.BufferedReader(io.BytesIO(program_bytes))
+        o = io.StringIO()
+
+        ver = _read_num(f)
+        tooldata_str = _tooldata_io_to_rapid(f)
+
+        print(f"MODULE {module_name}", file=o)
+        print(f"    ! abb_motion_program_exec format version {ver}", file=o)
+        print(f"    PERS tooldata motion_program_tool := {tooldata_str};", file=o)
+        print(f"    PROC main()", file=o)
+        
+        while True:
+            nums_bytes = f.peek(8)
+            if len(nums_bytes) < 8:
+                break
+            op = _num_struct_fmt.unpack_from(nums_bytes, 4)[0]
+            cmd_num = _num_struct_fmt.unpack_from(nums_bytes, 0)[0]
+            print(f"        ! cmd_num = {cmd_num}",file=o)
+            if op == 0x1:
+                print(f"        {_moveabsj_io_to_rapid(f)}",file=o)
+            elif op == 0x2:
+                print(f"        {_movej_io_to_rapid(f)}",file=o)
+            elif op == 0x3:
+                print(f"        {_movel_io_to_rapid(f)}",file=o)
+            elif op == 0x4:
+                print(f"        {_movec_io_to_rapid(f)}",file=o)
+            elif op == 0x5:
+                print(f"        {_waittime_io_to_rapid(f)}",file=o)
+            else:
+                assert False, f"Invalid command opcode: {op}"
+        
+        print("    ENDPROC", file=o)
+        print("ENDMODULE", file=o)
+        
+        return o.getvalue()
 
 
 class MotionProgramExecClient:
@@ -424,6 +562,8 @@ def main():
 
     mp.MoveC(r4,r5,v200,z10)
     mp.MoveC(r4,r3,v50,fine)
+
+    print(mp.get_program_rapid())
 
     client = MotionProgramExecClient()
     client.execute_motion_program(mp)

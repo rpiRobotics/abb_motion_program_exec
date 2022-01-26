@@ -181,6 +181,10 @@ mp.MoveJ(r3,abb.v5000,abb.fine)
 mp.MoveC(r4,r5,abb.v200,abb.z10)
 mp.MoveC(r4,r3,abb.v50,abb.fine)
 
+# Print out RAPID module of motion program for debugging
+print(mp.get_program_rapid())
+
+# Execute the motion program on the robot
 # Change base_url to the robot IP address
 client = abb.MotionProgramExecClient(base_url="http://127.0.0.1:80")
 client.execute_motion_program(mp)
