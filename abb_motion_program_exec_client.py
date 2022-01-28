@@ -95,7 +95,8 @@ class confdata(NamedTuple):
     cfx: float
 
 class robtarget(NamedTuple):
-    tframe: pose
+    trans: np.ndarray # [x,y,z]
+    rot: np.ndarray # [qw,qx,qy,qz]
     robconf: confdata # 
     extax: np.ndarray # shape=(6,)
 
@@ -154,7 +155,7 @@ def _confdata_to_bin(c: confdata):
 
 _robtarget_extax_struct_fmt = struct.Struct("<6f")
 def _robtarget_to_bin(r: robtarget):
-    pose_bin = _pose_to_bin(r.tframe)
+    pose_bin = _pose_to_bin(pose(r.trans,r.rot))
     robconf_bin = _confdata_to_bin(r.robconf)
     extax = _fix_array(r.extax,6).tolist()
     extax_bin = _robtarget_extax_struct_fmt.pack(*extax)
@@ -536,12 +537,12 @@ def main():
     mp.MoveAbsJ(j2,v5000,fine)
     mp.WaitTime(1)
 
-    r1 = robtarget(pose([0.1649235*1e3, 0.1169957*1e3, 0.9502961*1e3], [ 0.6776466, -0.09003431, 0.6362069, 0.3576725 ]), confdata(0,0,0,0),[0]*6)
-    r2 = robtarget(pose([ 0.6243948*1e3, -0.479558*1e3 ,  0.7073749*1e3], [ 0.6065634, -0.2193409,  0.6427138, -0.4133877]), confdata(-1,-1,0,1),[0]*6)
+    r1 = robtarget([0.1649235*1e3, 0.1169957*1e3, 0.9502961*1e3], [ 0.6776466, -0.09003431, 0.6362069, 0.3576725 ], confdata(0,0,0,0),[0]*6)
+    r2 = robtarget([ 0.6243948*1e3, -0.479558*1e3 ,  0.7073749*1e3], [ 0.6065634, -0.2193409,  0.6427138, -0.4133877], confdata(-1,-1,0,1),[0]*6)
 
-    r3 = robtarget(pose([417.9236, 276.9956, 885.2959], [ 0.8909725 , -0.1745558 ,  0.08864544,  0.4096832 ]), confdata( 0.,  1., -2.,  0.),[0]*6)
-    r4 = robtarget(pose([417.9235 , -11.00438, 759.2958 ], [0.7161292 , 0.1868255 , 0.01720813, 0.6722789 ]), confdata( 0.,  2., -2.,  0.),[0]*6)
-    r5 = robtarget(pose([ 417.9235, -173.0044,  876.2958], [0.6757616, 0.3854275, 0.2376617, 0.5816431]), confdata(-1.,  1., -1.,  0.),[0]*6)
+    r3 = robtarget([417.9236, 276.9956, 885.2959], [ 0.8909725 , -0.1745558 ,  0.08864544,  0.4096832 ], confdata( 0.,  1., -2.,  0.),[0]*6)
+    r4 = robtarget([417.9235 , -11.00438, 759.2958 ], [0.7161292 , 0.1868255 , 0.01720813, 0.6722789 ], confdata( 0.,  2., -2.,  0.),[0]*6)
+    r5 = robtarget([ 417.9235, -173.0044,  876.2958], [0.6757616, 0.3854275, 0.2376617, 0.5816431], confdata(-1.,  1., -1.,  0.),[0]*6)
 
     mp.MoveJ(r1,v500,fine)
     mp.MoveJ(r2,v400,fine)
