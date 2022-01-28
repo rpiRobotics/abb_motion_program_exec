@@ -436,7 +436,7 @@ class MotionProgramExecClient:
         raise ABBException(error_message, error_code)
 
     def start(self, cycle='asis'):
-        payload={"regain": "continue", "execmode": "continue" , "cycle": cycle, "condition": "none", "stopatbp": "disabled", "alltaskbytsp": "false"}
+        payload={"regain": "continue", "execmode": "continue" , "cycle": cycle, "condition": "none", "stopatbp": "disabled", "alltaskbytsp": "true"}
         res=self._do_post("rw/rapid/execution?action=start", payload)
 
     def stop(self):
@@ -503,11 +503,13 @@ class MotionProgramExecClient:
         assert len(b) > 0, "Motion program must not be empty"
         exec_state = self.get_execution_state()
         assert exec_state.ctrlexecstate == "stopped"
-        assert exec_state.cycle == "once"
+        #assert exec_state.cycle == "once"
+        ctrl_state = self.get_controller_state()
+        assert ctrl_state == "motoron"
         self.resetpp()
         self.upload_file("$temp/motion_program.bin", b)
 
-        self.start()
+        self.start(cycle='once')
         while True:
             exec_state = self.get_execution_state()
             if exec_state.ctrlexecstate != "running":
