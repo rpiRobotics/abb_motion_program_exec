@@ -584,6 +584,34 @@ class MotionProgramExecClient:
 
         if failed:
             assert False, "Motion Program Failed, see robot error log for details"
+
+        found_log_open = False
+        found_log_close = False
+        log_filename = ""
+
+        for l in log_after:
+            if l.code == 80003:
+                if l.args[0].lower() == "motion program log file closed":
+                    assert not found_log_close, "Found more than one log closed message"
+                    found_log_close = True
+                
+                if l.args[0].lower() == "motion program log file opened":
+                    assert not found_log_open, "Found more than one log opened message"
+                    found_log_open = True
+                    log_filename_m = re.search(r"(log\-[\d\-]+\.csv)",l.args[1])
+                    assert log_filename_m, "Invalid log opened message"
+                    log_filename = log_filename_m.group(1)
+
+        assert found_log_open and found_log_close and len(log_filename) > 0, "Could not find log file messages in robot event log"
+
+        log_contents = self.read_file(f"$temp/{log_filename}")
+        try:
+            self.delete_file(f"$temp/{log_filename}")
+        except:
+            pass
+        return log_contents
+
+
         
 class ABBException(Exception):
     def __init__(self, message, code):
