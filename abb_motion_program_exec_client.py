@@ -577,10 +577,11 @@ class MotionProgramExecClient:
         
         failed = False
         for l in log_after:
-            if l.msgtype >= 2:
-                failed = True
+            if l.msgtype >= 2:                
                 if l.args[0].lower() == "motion program failed":
                     assert False, l.args[1] + " " + l.args[2]
+            if l.msgtype >= 3:
+                failed = True
 
         if failed:
             assert False, "Motion Program Failed, see robot error log for details"
@@ -678,7 +679,15 @@ def main():
     print(mp.get_program_rapid())
 
     client = MotionProgramExecClient()
-    client.execute_motion_program(mp)
+    log_results = client.execute_motion_program(mp)
+
+    # Write log csv to file
+    # with open("log.csv","wb") as f:
+    #    f.write(log_results)
+
+    # Or convert to string and use in memory
+    log_results_str = log_results.decode('ascii')
+    print(log_results_str)
 
 if __name__ == "__main__":
     main()
