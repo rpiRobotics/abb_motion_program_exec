@@ -579,7 +579,7 @@ class MotionProgramExecClient:
         for l in log_after:
             if l.msgtype >= 2:                
                 if l.args[0].lower() == "motion program failed":
-                    assert False, l.args[1] + " " + l.args[2]
+                    assert False, l.args[1] + " " + l.args[2] + " " + l.args[3] + " " + l.args[4]
             if l.msgtype >= 3:
                 failed = True
 
