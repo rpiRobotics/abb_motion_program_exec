@@ -14,6 +14,7 @@
 # limitations under the License.
 
 
+import re
 from typing import NamedTuple, Any, List
 import struct
 import numpy as np
@@ -21,6 +22,7 @@ import io
 import requests
 from bs4 import BeautifulSoup
 import time
+import datetime
 
 class speeddata(NamedTuple):
     v_tcp: float
@@ -285,13 +287,23 @@ def _waittime_io_to_rapid(f: io.IOBase):
 tool0 = tooldata(True,pose([0,0,0],[1,0,0,0]),loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0))        
 
 class MotionProgram:
-    def __init__(self,first_cmd_num: int=1, tool: tooldata = None):
+    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, timestamp: str = None):
+
+        if timestamp is None:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S-%f")[:-2]
+        assert re.match(r"^\d{4}\-\d{2}\-\d{2}-\d{2}\-\d{2}\-\d{2}\-\d{4}$", timestamp)
+
+        self._timestamp = timestamp
+
         self._f = io.BytesIO()
         # Version number
-        self._f.write(_num_to_bin(10002))
+        self._f.write(_num_to_bin(10003))
         if tool is None:
             tool = tool0
         self._f.write(_tooldata_to_bin(tool))
+        timestamp_ascii = timestamp.encode("ascii")
+        self._f.write(_num_to_bin(len(timestamp_ascii)))
+        self._f.write(timestamp_ascii)
         self._cmd_num=first_cmd_num
 
     def MoveAbsJ(self, to_joint_pos: jointtarget, speed: speeddata, zone: zonedata):
@@ -357,9 +369,14 @@ class MotionProgram:
 
         ver = _read_num(f)
         tooldata_str = _tooldata_io_to_rapid(f)
+        timestamp_ascii_len = int(_read_num(f))
+        timestamp_ascii = f.read(timestamp_ascii_len)
+        timestamp_str = timestamp_ascii.decode('ascii')
+
 
         print(f"MODULE {module_name}", file=o)
         print(f"    ! abb_motion_program_exec format version {ver}", file=o)
+        print(f"    ! abb_motion_program_exec timestamp {timestamp_str}", file=o)
         print(f"    PERS tooldata motion_program_tool := {tooldata_str};", file=o)
         print(f"    PROC main()", file=o)
         
@@ -387,6 +404,9 @@ class MotionProgram:
         print("ENDMODULE", file=o)
         
         return o.getvalue()
+
+    def get_timestamp(self):
+        return self._timestamp
 
 
 class MotionProgramExecClient:
@@ -498,6 +518,33 @@ class MotionProgramExecClient:
         res=self._session.delete(url, auth=self.auth)
         res.close()
 
+    def read_event_log(self, elog=0):
+        o=[]
+        soup = self._do_get("rw/elog/" + str(elog) + "/?lang=en")
+        state=soup.find('div', attrs={'class': 'state'})
+        ul=state.find('ul')
+        
+        for li in ul.findAll('li'):
+            seqnum = int(li.attrs["title"].split("/")[-1])
+            def find_val(v):
+                return li.find('span', attrs={'class': v}).text
+            msg_type=int(find_val('msgtype'))
+            code=int(find_val('code'))
+            tstamp=datetime.datetime.strptime(find_val('tstamp'), '%Y-%m-%d T  %H:%M:%S')
+            title=find_val('title')
+            desc=find_val('desc')
+            conseqs=find_val('conseqs')
+            causes=find_val('causes')
+            actions=find_val('actions')
+            args=[]
+            nargs=int(find_val('argc'))
+            for i in range(nargs):
+                arg=find_val('arg%d' % (i+1))
+                args.append(arg)
+            
+            o.append(RAPIDEventLogEntry(seqnum,msg_type,code,tstamp,args,title,desc,conseqs,causes,actions))
+        return o
+
     def execute_motion_program(self, motion_program : MotionProgram):
         b = motion_program.get_program_bytes()
         assert len(b) > 0, "Motion program must not be empty"
@@ -506,6 +553,10 @@ class MotionProgramExecClient:
         #assert exec_state.cycle == "once"
         ctrl_state = self.get_controller_state()
         assert ctrl_state == "motoron"
+
+        log_before = self.read_event_log()
+        prev_seqnum = log_before[0].seqnum
+
         self.resetpp()
         self.upload_file("$temp/motion_program.bin", b)
 
@@ -515,6 +566,24 @@ class MotionProgramExecClient:
             if exec_state.ctrlexecstate != "running":
                 break
             time.sleep(0.05)
+
+        log_after_raw = self.read_event_log()
+        log_after = []
+        for l in log_after_raw:
+            if l.seqnum > prev_seqnum:
+                log_after.append(l)
+            else:
+                break
+        
+        failed = False
+        for l in log_after:
+            if l.msgtype >= 2:
+                failed = True
+                if l.args[0].lower() == "motion program failed":
+                    assert False, l.args[1] + " " + l.args[2]
+
+        if failed:
+            assert False, "Motion Program Failed, see robot error log for details"
         
 class ABBException(Exception):
     def __init__(self, message, code):
@@ -524,6 +593,18 @@ class ABBException(Exception):
 class RAPIDExecutionState(NamedTuple):
     ctrlexecstate: Any
     cycle: Any
+
+class RAPIDEventLogEntry(NamedTuple):
+    seqnum: int
+    msgtype: int
+    code: int 
+    tstamp: datetime.datetime 
+    args: List[Any]
+    title: str
+    desc: str
+    conseqs: str
+    causes: str
+    actions: str
 
 def main():
     j1 = jointtarget([10,20,30,40,50,60],[0]*6)
