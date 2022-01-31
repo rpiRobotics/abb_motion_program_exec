@@ -27,6 +27,13 @@ script can be executed to run a sample motion sequence on an ABB 1200
 robot. (Simulation only due to the choice of waypoints!) The
 module can also be included in another Python program.
 
+**Only one instance of a Robot Studio virtual controller can be run at a time.** Only
+instances of Robot Studio can be run at a time running a single virtual controller. This is due to
+the controller using TCP port 80 on the local computer to accept REST commands from Python. If
+more than one controller is started, TCP port 80 will already be in use and can cause unpredictable
+behavior. Restart the computer if connections cannot be made from Python to the controller. Multiple
+real robots can be used concurrently since they will each have a unique IP address to bind port 80.
+
 ## Usage
 
 Once the `abb_motion_program_exec.mod` has been loaded on the controller,
@@ -140,9 +147,31 @@ robot, or using `localhost` if using the simulator.
 
 Once the client is constructed, it can be used to execute the program:
 
+```python
+log_csv_bin = mp_client.execute_motion_program(mp)
 ```
-mp_client.execute_motion_program(mp)
+
+`log_csv_bin` will contain a CSV file in binary format. This can either be saved to a binary
+file directly, or converted to a string and used in Python. To convert to a string, use:
+
+```python
+log_csv = log_csv_bin.decode('ascii')
 ```
+
+The CSV data has the following columns:
+
+* `timestamp` - The time of the row. This is time from the startup of the logger task in seconds.
+  Subtract the initial time from all samples to get a 0 start time for the program.
+* `cmd_num` - The currently executing command number. Use `get_program_rapid()` to print out
+  the program with command numbers annotated.
+* `J1` - Joint 1 position in degrees
+* `J2` - Joint 2 position in degrees
+* `J3` - Joint 3 position in degrees
+* `J4` - Joint 4 position in degrees
+* `J5` - Joint 5 position in degrees
+* `J6` - Joint 6 position in degrees
+
+The first line of the CSV data contains column headers.
 
 ## Example
 
@@ -207,6 +236,16 @@ with open("log.csv","wb") as f:
 log_results_str = log_results.decode('ascii')
 print(log_results_str)
 
+```
+
+Example log CSV data (truncated):
+
+```
+timestamp, cmd_num, J1, J2, J3, J4, J5, J6
+85.34, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344
+85.344, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344
+85.348, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344
+85.352, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344
 ```
 
 ## License
