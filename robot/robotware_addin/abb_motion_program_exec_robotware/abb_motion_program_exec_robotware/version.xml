@@ -1,0 +1,11 @@
+<Version>
+  <Major>0</Major>
+  <Minor>1</Minor>
+  <Build>0</Build>
+  <Revision>0</Revision>
+  <VersionName>0.1</VersionName>
+  <Title>abb_motion_program_exec_robotware</Title>
+  <Description>abb_motion_program_exec_robotware AddIn</Description>
+  <Date>2022-01-30</Date>
+  <Type>AdditionalOption</Type>
+</Version>

@@ -1,13 +1,5 @@
 MODULE motion_program_exec
       
-    RECORD motion_program_state_type
-        bool running;
-        num current_cmd_num;
-        string motion_program_filename; 
-        num clk_time;
-        jointtarget joint_position;
-    ENDRECORD
-
     PERS motion_program_state_type motion_program_state;
    
     LOCAL VAR iodev motion_program_io_device;
@@ -15,39 +7,56 @@ MODULE motion_program_exec
     LOCAL VAR num motion_program_bytes_offset;
     
     PERS tooldata motion_program_tool;
-        
+    
+    PERS string motion_program_timestamp;
+    VAR rmqslot logger_rmq;
+                
     PROC main()
         VAR zonedata z := fine;
-        
-        TPWrite "Start";
+        motion_program_state.current_cmd_num:=-1;
+        RMQFindSlot logger_rmq, "RMQ_logger";        
         run_motion_program_file("motion_program.bin");        
-        TPWrite "Done";
+        ErrWrite \I, "Motion Program Complete", "Motion Program Complete";        
         
     ENDPROC
     
     PROC run_motion_program_file(string filename)
+        ErrWrite \I, "Motion Program Begin", "Motion Program Begin";
         close_motion_program_file;
         open_motion_program_file(filename);
+        motion_program_req_log_start;
+        ErrWrite \I, "Motion Program Start Program", "Motion Program Start Program timestamp: " + motion_program_timestamp;
         motion_program_run;
         close_motion_program_file;
+        motion_program_req_log_end;
     ENDPROC
     
     PROC open_motion_program_file(string filename)
         VAR num ver;
         VAR tooldata mtool;
+        VAR string timestamp;
         motion_program_state.motion_program_filename:=filename;
         Open "TEMP:" \File:=filename, motion_program_io_device, \Read \Bin;
         IF NOT try_motion_program_read_num(ver) THEN
             RAISE ERR_FILESIZE;
         ENDIF
         
-        IF ver <> 10002 THEN
+        IF ver <> 10003 THEN
             RAISE ERR_WRONGVAL;
         ENDIF
         
         IF NOT try_motion_program_read_td(mtool) THEN
             RAISE ERR_FILESIZE;
         ENDIF
+        
+        IF NOT try_motion_program_read_string(timestamp) THEN
+            RAISE ERR_FILESIZE;
+        ENDIF
+        
+        motion_program_timestamp := timestamp;
+        
+        ErrWrite \I, "Motion Program Opened", "Motion Program Opened with timestamp: " + timestamp;
+        
         motion_program_tool:=mtool;
     ENDPROC
     
@@ -66,12 +75,9 @@ MODULE motion_program_exec
         VAR num cmd_op;
         motion_program_state.current_cmd_num:=-1;
         motion_program_state.running:=TRUE;
-        !ClkReset motion_program_state.run_clock;
-        !ClkStart motion_program_state.run_clock;
         WHILE keepgoing DO
             keepgoing := try_motion_program_run_next_cmd(cmd_num, cmd_op);
         ENDWHILE
-        !ClkStop motion_program_state.run_clock;
         motion_program_state.running:=FALSE;
     ERROR
         motion_program_state.running:=FALSE;
@@ -101,8 +107,7 @@ MODULE motion_program_exec
             RETURN try_motion_program_wait();
         DEFAULT:
             RAISE ERR_WRONGVAL;
-        ENDTEST       
-        
+        ENDTEST
     ENDFUNC
     
     FUNC bool try_motion_program_run_moveabsj()
@@ -117,8 +122,7 @@ MODULE motion_program_exec
             RETURN FALSE;
         ENDIF
         MoveAbsJ j, sd, zd, motion_program_tool;
-        RETURN TRUE;
-        
+        RETURN TRUE;   
     ENDFUNC
     
     FUNC bool try_motion_program_run_movej()
@@ -311,5 +315,31 @@ MODULE motion_program_exec
         RETURN TRUE;
     ENDFUNC
     
+    FUNC bool try_motion_program_read_string(INOUT string val)
+        VAR num str_len;
+        IF NOT (
+            try_motion_program_fill_bytes()
+            AND try_motion_program_read_num(str_len)
+        )
+        THEN
+            val:= "";
+            RETURN FALSE;
+        ENDIF
+        IF RawBytesLen(motion_program_bytes) < motion_program_bytes_offset + str_len THEN
+            RAISE ERR_WRONGVAL;
+        ENDIF
+        UnpackRawBytes motion_program_bytes, motion_program_bytes_offset, val, \ASCII:=str_len;
+        motion_program_bytes_offset:=motion_program_bytes_offset+str_len;
+        RETURN TRUE;
+    ENDFUNC
+    
+    PROC motion_program_req_log_start()
+        RMQSendMessage logger_rmq, motion_program_timestamp;
+    ENDPROC
+    
+    PROC motion_program_req_log_end()
+        VAR string msg := "";
+        RMQSendMessage logger_rmq, msg;
+    ENDPROC
 
 ENDMODULE

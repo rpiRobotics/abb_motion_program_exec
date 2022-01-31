@@ -1,0 +1,11 @@
+MODULE mp
+
+RECORD motion_program_state_type
+	bool running;
+	num current_cmd_num;
+	string motion_program_filename; 
+	num clk_time;
+    jointtarget joint_position;
+ENDRECORD
+
+ENDMODULE

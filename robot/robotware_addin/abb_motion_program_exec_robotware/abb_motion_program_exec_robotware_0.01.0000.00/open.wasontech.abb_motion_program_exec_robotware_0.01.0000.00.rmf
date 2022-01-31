@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ProductManifest version="1.1">
+  <Product id="open.wasontech.abb_motion_program_exec_robotware" name="abb_motion_program_exec_robotware" version="0.01.0000.00" versionName="0.1" creationDate="2022-01-30" publisher="Wason Technology, LLC" type="AddIn" copyright="Copyright 2022 Wason Technology, LLC. All rights reserved." companyUrl="http://wasontech.com">
+    <Description>abb_motion_program_exec_robotware AddIn</Description>
+    <Dependency id="abb.robotics.robotware" name="RobotWare" publisher="ABB" versionMin="6.10.0000.00" versionMax="6.99.0000.00" platform="vc;rc;rcsim" type="RobotWare" />
+  </Product>
+  <Categories>
+    <Category displayName="Wason Technology" type="system">
+      <Groups>
+        <Group displayName="Remote Motion Control">
+          <FeatureRef id="open.wasontech.abb_motion_program_exec_robotware.motion_program_exec" />
+        </Group>
+      </Groups>
+    </Category>
+  </Categories>
+  <Features>
+    <Feature id="open.wasontech.abb_motion_program_exec_robotware.motion_program_exec" displayName="Motion Program Exec" requiresLicense="false" type="system" />
+  </Features>
+  <Rules>
+    <Dependencies>
+      <FeatureRef id="open.wasontech.abb_motion_program_exec_robotware.motion_program_exec">
+        <Or />
+        <FeatureRef id="abb.robotics.robotware.options.pcinterface" />
+        <FeatureRef id="abb.robotics.robotware.options.multitasking" />
+      </FeatureRef>
+    </Dependencies>
+    <Conflicts />
+  </Rules>
+  <Packages>
+    <FeatureRef id="open.wasontech.abb_motion_program_exec_robotware.motion_program_exec">
+      <Package id="open.wasontech.abb_motion_program_exec_robotware_0.01.0000.00.rpk" platform="vc;rc;rcsim" digest="4A10252D8AF1226AE9F0EE8CFB90D59CF57982A8" />
+    </FeatureRef>
+  </Packages>
+</ProductManifest>
