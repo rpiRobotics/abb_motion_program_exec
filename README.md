@@ -7,8 +7,17 @@ concept for more sophisticated controller interfaces.
 
 ## Installation
 
-Begin by cutting and pasting the contents `abb_motion_program_exec.mod` to
-the robot controller. This contains the robot-side code, that reads
+Begin by installing the software for the robot controller. This software can be
+installed manually by copying files to the robot controller and importing configuration files,
+or by using a RobotWare Add-In. The RobotWare Add-In is cleaner and probably more reliable,
+but is also less flexible and requires using the Installation Manager which can be confusing. If
+you aren't sure which to use, try using the manual installation first.
+
+* See [robot_setup_manual.md](doc/robot_setup_manual.md) for manual setup instructions.
+* See [robot_setup_robotware_addin.md](doc/robot_setup_robotware_addin.md) for RobotWare Add-In 
+  setup instructions
+
+This contains the robot-side code, that reads
 and executes the contents of `motion_program.bin`. `motion_program.bin`
 contains the sequence of instructions to run, encoded in binary
 format for fast interpretation.
@@ -188,7 +197,15 @@ print(mp.get_program_rapid())
 # Execute the motion program on the robot
 # Change base_url to the robot IP address
 client = abb.MotionProgramExecClient(base_url="http://127.0.0.1:80")
-client.execute_motion_program(mp)
+log_results = client.execute_motion_program(mp)
+
+# Write log csv to file
+with open("log.csv","wb") as f:
+    f.write(log_results)
+
+# Or convert to string and use in memory
+log_results_str = log_results.decode('ascii')
+print(log_results_str)
 
 ```
 
