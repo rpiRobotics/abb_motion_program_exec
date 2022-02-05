@@ -1,8 +1,7 @@
 MODULE motion_program_logger
             
     PERS motion_program_state_type motion_program_state;
-    PERS string motion_program_timestamp;
-    
+        
     VAR bool log_file_open:=FALSE;
     VAR iodev log_io_device;
     VAR clock time_stamp_clock;
@@ -31,20 +30,22 @@ MODULE motion_program_logger
             clk_now:=ClkRead(time_stamp_clock \HighRes);
             motion_program_state.clk_time:=clk_now;
             motion_program_state.joint_position:=CJointT(\TaskRef:=T_ROB1Id);
-            
-            clk_diff:= loop_count*0.004 - clk_now;
-            loop_count := loop_count+1;
-            IF clk_diff > 0 THEN
-                WaitTime clk_diff;
+            IF log_file_open THEN               
+                clk_diff:= loop_count*0.004 - clk_now;
+                loop_count := loop_count+1;
+                IF clk_diff > 0 THEN
+                    WaitTime clk_diff;
+                ENDIF
+            ELSE
+                ClkStop time_stamp_clock;
+                ClkReset time_stamp_clock;
+                WaitTime 0.004;
+                ClkStart time_stamp_clock;
             ENDIF
             
             IF motion_program_executing <> 0 THEN
                 IF log_file_open THEN
                     motion_program_log_data;
-                ENDIF                
-            ELSE
-                IF log_file_open THEN
-                    !motion_program_log_close;
                 ENDIF
             ENDIF
             
