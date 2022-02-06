@@ -173,6 +173,15 @@ The CSV data has the following columns:
 
 The first line of the CSV data contains column headers.
 
+## Python module installation
+
+The `abb_motion_program_exec_client` module can be installed into the local Python
+installation using the following command executed in the project root directory:
+
+```
+pip install --user .
+```
+
 ## Example
 
 ```python
