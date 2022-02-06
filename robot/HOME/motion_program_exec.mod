@@ -9,22 +9,30 @@ MODULE motion_program_exec
     PERS tooldata motion_program_tool;
     
     VAR rmqslot logger_rmq;
+    
+    VAR intnum motion_trigg_intno;
+    VAR triggdata motion_trigg_data;
+    VAR num motion_cmd_num_history{128};
+    VAR num motion_current_cmd_ind;
+    VAR num motion_max_cmd_ind;
                 
     PROC main()
         VAR zonedata z := fine;
         motion_program_state.current_cmd_num:=-1;
+        CONNECT motion_trigg_intno WITH motion_trigg_trap;
+        TriggInt motion_trigg_data, 0.001, \Start, motion_trigg_intno;
         RMQFindSlot logger_rmq, "RMQ_logger";        
         run_motion_program_file("motion_program.bin");        
         ErrWrite \I, "Motion Program Complete", "Motion Program Complete";        
-        
+        IDelete motion_trigg_intno;
     ENDPROC
     
     PROC run_motion_program_file(string filename)
         ErrWrite \I, "Motion Program Begin", "Motion Program Begin";
         close_motion_program_file;
         open_motion_program_file(filename);
-        motion_program_req_log_start;
         ErrWrite \I, "Motion Program Start Program", "Motion Program Start Program timestamp: " + motion_program_state.program_timestamp;
+        motion_program_req_log_start;        
         motion_program_run;
         close_motion_program_file;
         motion_program_req_log_end;
@@ -53,6 +61,8 @@ MODULE motion_program_exec
         ENDIF
         
         motion_program_state.program_timestamp := timestamp;
+        motion_current_cmd_ind := 0;
+        motion_max_cmd_ind := 0;
         
         ErrWrite \I, "Motion Program Opened", "Motion Program Opened with timestamp: " + timestamp;
         
@@ -86,28 +96,39 @@ MODULE motion_program_exec
             
     FUNC bool try_motion_program_run_next_cmd(INOUT num cmd_num, INOUT num cmd_op)
         
+        VAR num local_cmd_ind;
+        
         IF NOT (try_motion_program_read_num(cmd_num) AND try_motion_program_read_num(cmd_op)) THEN
             RETURN FALSE;
         ENDIF
         
-        motion_program_state.current_cmd_num:=cmd_num;
+        !motion_program_state.current_cmd_num:=cmd_num;
+        motion_max_cmd_ind:=motion_max_cmd_ind+1;
+        local_cmd_ind:=((motion_max_cmd_ind-1) MOD 128) + 1;
         
         TEST cmd_op
         CASE 0:
             RETURN TRUE;
         CASE 1:
+            motion_cmd_num_history{local_cmd_ind} := -1;
             RETURN try_motion_program_run_moveabsj();
         CASE 2:
+            motion_cmd_num_history{local_cmd_ind} := cmd_num;
             RETURN try_motion_program_run_movej();
         CASE 3:
+            motion_cmd_num_history{local_cmd_ind} := cmd_num;
             RETURN try_motion_program_run_movel();
         CASE 4:
+            motion_cmd_num_history{local_cmd_ind} := cmd_num;
             RETURN try_motion_program_run_movec();
         CASE 5:
-            RETURN try_motion_program_wait();
+            motion_cmd_num_history{local_cmd_ind} := -1;
+            RETURN try_motion_program_wait(cmd_num);
         DEFAULT:
             RAISE ERR_WRONGVAL;
         ENDTEST
+        
+        
     ENDFUNC
     
     FUNC bool try_motion_program_run_moveabsj()
@@ -136,7 +157,7 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        MoveJ rt, sd, zd, motion_program_tool;
+        TriggJ rt, sd, motion_trigg_data, zd, motion_program_tool;
         RETURN TRUE;
         
     ENDFUNC
@@ -152,7 +173,7 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        MoveL rt, sd, zd, motion_program_tool;
+        TriggL rt, sd, motion_trigg_data, zd, motion_program_tool;
         RETURN TRUE;
         
     ENDFUNC
@@ -170,16 +191,18 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        MoveC rt1, rt2, sd, zd, motion_program_tool;
+        TriggC rt1, rt2, sd, motion_trigg_data, zd, motion_program_tool;
         RETURN TRUE;
         
     ENDFUNC
     
-    FUNC bool try_motion_program_wait()
+    FUNC bool try_motion_program_wait(num cmd_num)
         VAR num t;
         IF NOT try_motion_program_read_num(t) THEN
             RETURN FALSE;
         ENDIF
+        WaitRob \ZeroSpeed;
+        motion_program_state.current_cmd_num:=cmd_num;
         WaitTime t;
         RETURN TRUE;
     ENDFUNC
@@ -343,5 +366,25 @@ MODULE motion_program_exec
         VAR string msg := "";
         RMQSendMessage logger_rmq, msg;
     ENDPROC
+    
+    TRAP motion_trigg_trap
+        VAR num cmd_ind;
+        VAR num local_cmd_ind;
+        VAR num cmd_num:=-1;
+        WHILE cmd_num = -1 AND (NOT motion_current_cmd_ind > motion_max_cmd_ind) DO
+            motion_current_cmd_ind:=motion_current_cmd_ind+1;
+            IF motion_current_cmd_ind > motion_max_cmd_ind THEN
+                cmd_ind := motion_max_cmd_ind;
+            ELSE
+                cmd_ind := motion_current_cmd_ind;
+            ENDIF
+            local_cmd_ind:=((cmd_ind-1) MOD 128) + 1;
+            cmd_num:=motion_cmd_num_history{local_cmd_ind};
+        ENDWHILE
+        
+        IF cmd_num <> -1 THEN
+            motion_program_state.current_cmd_num:=cmd_num;
+        ENDIF
+    ENDTRAP
 
 ENDMODULE
