@@ -37,6 +37,7 @@ MODULE motion_program_logger
                     WaitTime clk_diff;
                 ENDIF
             ELSE
+                loop_count := 0;
                 ClkStop time_stamp_clock;
                 ClkReset time_stamp_clock;
                 WaitTime 0.004;
