@@ -8,7 +8,6 @@ MODULE motion_program_exec
     
     PERS tooldata motion_program_tool;
     
-    PERS string motion_program_timestamp;
     VAR rmqslot logger_rmq;
                 
     PROC main()
@@ -25,7 +24,7 @@ MODULE motion_program_exec
         close_motion_program_file;
         open_motion_program_file(filename);
         motion_program_req_log_start;
-        ErrWrite \I, "Motion Program Start Program", "Motion Program Start Program timestamp: " + motion_program_timestamp;
+        ErrWrite \I, "Motion Program Start Program", "Motion Program Start Program timestamp: " + motion_program_state.program_timestamp;
         motion_program_run;
         close_motion_program_file;
         motion_program_req_log_end;
@@ -53,7 +52,7 @@ MODULE motion_program_exec
             RAISE ERR_FILESIZE;
         ENDIF
         
-        motion_program_timestamp := timestamp;
+        motion_program_state.program_timestamp := timestamp;
         
         ErrWrite \I, "Motion Program Opened", "Motion Program Opened with timestamp: " + timestamp;
         
@@ -78,6 +77,7 @@ MODULE motion_program_exec
         WHILE keepgoing DO
             keepgoing := try_motion_program_run_next_cmd(cmd_num, cmd_op);
         ENDWHILE
+        WaitRob \ZeroSpeed;
         motion_program_state.running:=FALSE;
     ERROR
         motion_program_state.running:=FALSE;
@@ -334,7 +334,9 @@ MODULE motion_program_exec
     ENDFUNC
     
     PROC motion_program_req_log_start()
-        RMQSendMessage logger_rmq, motion_program_timestamp;
+        VAR string msg;
+        msg:=motion_program_state.program_timestamp;
+        RMQSendMessage logger_rmq, msg;
     ENDPROC
     
     PROC motion_program_req_log_end()
