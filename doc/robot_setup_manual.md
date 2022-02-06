@@ -118,3 +118,8 @@ python3 abb_motion_program_exec_client.py
 
 By default, the virtual controller listens on `http://localhost:80` for requests. The Python
 module uses ABB WebServices for communication.
+
+## Updating RAPID modules
+
+To update RAPID modules, copy the updated files to `HOME`, and click Controller -> 
+Restart (dropdown)-> Reset RAPID (P-start).
