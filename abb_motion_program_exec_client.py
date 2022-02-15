@@ -572,6 +572,9 @@ class MotionProgramExecClient:
         for l in log_after_raw:
             if l.seqnum > prev_seqnum:
                 log_after.append(l)
+            elif prev_seqnum > 61440 and l.seqnum < 4096:
+                # Handle uint16 wraparound
+                log_after.append(l)
             else:
                 break
         
