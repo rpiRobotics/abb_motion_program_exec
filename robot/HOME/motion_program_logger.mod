@@ -105,6 +105,7 @@ MODULE motion_program_logger
     
     TRAP rmq_message_string
         VAR rmqmessage rmqmsg;
+        IDisable;
         RMQGetMessage rmqmsg;
         RMQGetMsgData rmqmsg, rmq_timestamp;
         IF log_file_open THEN
@@ -113,15 +114,17 @@ MODULE motion_program_logger
         IF StrLen(rmq_timestamp) > 0 THEN
             motion_program_log_open;
         ENDIF
+        IEnable;
     ENDTRAP
     
     
     TRAP err_handler
-        
+                
         VAR trapdata err_data;
         VAR errdomain err_domain;    
         VAR num err_number;    
         VAR errtype err_type;
+        IDisable;
         ISleep logger_err_interrupt;
         
         GetTrapData err_data;
@@ -131,6 +134,7 @@ MODULE motion_program_logger
         ENDIF
         
         IWatch logger_err_interrupt;
+        IEnable;
         
     ENDTRAP
     
