@@ -44,11 +44,13 @@ MODULE motion_program_logger
                 ClkStart time_stamp_clock;
             ENDIF
             
+            IDisable;
             IF motion_program_executing <> 0 THEN
                 IF log_file_open THEN
                     motion_program_log_data;
                 ENDIF
             ENDIF
+            IEnable;
             
         ENDWHILE
     ENDPROC

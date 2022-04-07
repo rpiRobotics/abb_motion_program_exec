@@ -6,6 +6,7 @@ RECORD motion_program_state_type
 	string motion_program_filename; 
 	num clk_time;
     jointtarget joint_position;
+    string program_timestamp;
 ENDRECORD
 
 ENDMODULE
