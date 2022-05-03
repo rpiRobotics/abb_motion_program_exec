@@ -1,7 +1,7 @@
 MODULE error_reporter
     VAR intnum motion_program_err_interrupt;
     
-    PERS motion_program_state_type motion_program_state;
+    PERS motion_program_state_type motion_program_state{2};
             
     PROC main()
         CONNECT motion_program_err_interrupt WITH motion_program_trap_err;
@@ -24,7 +24,7 @@ MODULE error_reporter
         GetTrapData err_data;
         ReadErrData err_data, err_domain, err_number, err_type \Title:=titlestr \Str1:=string1 \Str2:=string2;
 
-        ErrWrite \W, "Motion Program Failed", "Motion Program Failed at command number " + NumToStr(motion_program_state.current_cmd_num,0) 
+        ErrWrite \W, "Motion Program Failed", "Motion Program Failed at command number " + NumToStr(motion_program_state{1}.current_cmd_num,0) 
             \RL2:= "with error code " + NumToStr(err_domain*10000+err_number,0)
             \RL3:= "error title '" + titlestr + "'"
             \RL4:= "error string '" + string1 + "'";
