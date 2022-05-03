@@ -15,7 +15,7 @@
 
 
 import re
-from typing import NamedTuple, Any, List
+from typing import Callable, NamedTuple, Any, List
 import struct
 import numpy as np
 import io
@@ -455,9 +455,32 @@ class MotionProgramExecClient:
 
         raise ABBException(error_message, error_code)
 
-    def start(self, cycle='asis'):
+    def start(self, cycle='asis',tasks=['T_ROB1']):
+
+        rob_tasks = self.get_tasks()
+        for t in tasks:
+            assert t in rob_tasks, f"Cannot start unknown task {t}"
+
+        for rob_task in rob_tasks.values():
+            if not rob_task.motiontask:
+                continue
+            if rob_task.name in tasks:
+                if not rob_task.active:
+                    self.activate_task(rob_task.name)
+            else:
+                if rob_task.active:
+                    self.deactivate_task(rob_task.name)
+
         payload={"regain": "continue", "execmode": "continue" , "cycle": cycle, "condition": "none", "stopatbp": "disabled", "alltaskbytsp": "true"}
         res=self._do_post("rw/rapid/execution?action=start", payload)
+
+    def activate_task(self, task):
+        payload={}
+        self._do_post(f"rw/rapid/tasks/{task}?action=activate",payload)
+
+    def deactivate_task(self, task):
+        payload={}
+        self._do_post(f"rw/rapid/tasks/{task}?action=deactivate",payload)
 
     def stop(self):
         payload={"stopmode": "stop"}
@@ -545,9 +568,73 @@ class MotionProgramExecClient:
             o.append(RAPIDEventLogEntry(seqnum,msg_type,code,tstamp,args,title,desc,conseqs,causes,actions))
         return o
 
-    def execute_motion_program(self, motion_program : MotionProgram):
+    def get_tasks(self):
+        o = {}
+        soup = self._do_get("rw/rapid/tasks")
+        state=soup.find('div', attrs={'class': 'state'})
+        ul=state.find('ul')
+        
+        for li in ul.findAll('li'):
+            def find_val(v):
+                return li.find('span', attrs={'class': v}).text
+            name=find_val('name')
+            type_=find_val('type')
+            taskstate=find_val('taskstate')
+            excstate=find_val('excstate')
+            active=find_val('active') == "On"
+            motiontask=find_val("motiontask").lower() == "true"
+
+            o[name]=RAPIDTaskState(name,type_,taskstate,excstate,active,motiontask)
+        
+        return o
+
+    def execute_motion_program(self, motion_program: MotionProgram, task="T_ROB1"):
         b = motion_program.get_program_bytes()
         assert len(b) > 0, "Motion program must not be empty"
+        filename = "$temp/motion_program.bin"
+        if task != "T_ROB1":
+            task_m = re.match(r"^.*[A-Za-z_](\d+)$",task)
+            if task_m:
+                filename_ind = int(task_m.group(1))
+                filename = f"$temp/motion_program{filename_ind}.bin"
+        def _upload():            
+            self.upload_file(filename, b)
+
+        return self._execute_motion_program([task],_upload)
+
+    def execute_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks=None):
+
+        if tasks is None:
+            tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
+
+        assert len(motion_programs) == len(tasks), \
+            "Motion program list and task list must have some length"
+
+        assert len(tasks) > 1, "Multimove program must have at least two tasks"
+
+        b = []
+        for mp in motion_programs:
+            b.append(mp.get_program_bytes())
+        assert len(b) > 0, "Motion program must not be empty"
+        filenames = []        
+        for task in tasks:
+            filename = "$temp/motion_program.bin"
+            if task != "T_ROB1":
+                task_m = re.match(r"^.*[A-Za-z_](\d+)$",task)
+                if task_m:
+                    filename_ind = int(task_m.group(1))
+                    filename = f"$temp/motion_program{filename_ind}.bin"
+            filenames.append(filename)
+
+        assert len(filenames) == len(b)
+        def _upload():
+            for i in range(len(filenames)):
+                self.upload_file(filenames[i], b[i])
+
+        return self._execute_motion_program(tasks,_upload)
+
+    def _execute_motion_program(self, tasks, upload_fn: Callable[[],None]):
+        
         exec_state = self.get_execution_state()
         assert exec_state.ctrlexecstate == "stopped"
         #assert exec_state.cycle == "once"
@@ -558,9 +645,9 @@ class MotionProgramExecClient:
         prev_seqnum = log_before[0].seqnum
 
         self.resetpp()
-        self.upload_file("$temp/motion_program.bin", b)
-
-        self.start(cycle='once')
+        upload_fn()
+        
+        self.start(cycle='once',tasks=tasks)
         while True:
             exec_state = self.get_execution_state()
             if exec_state.ctrlexecstate != "running":
@@ -637,6 +724,14 @@ class RAPIDEventLogEntry(NamedTuple):
     conseqs: str
     causes: str
     actions: str
+
+class RAPIDTaskState(NamedTuple):
+    name: str
+    type_: str
+    taskstate: str
+    excstate: str
+    active: bool
+    motiontask: bool
 
 def main():
     j1 = jointtarget([10,20,30,40,50,60],[0]*6)

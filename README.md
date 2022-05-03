@@ -3,7 +3,8 @@
 `abb_motion_program_exec` provides a simple way to download and run a sequence of
 `MoveAbsJ`, `MoveJ`, `MoveL`, `MoveC`, and `WaitTime` commands on
 an ABB IRC5 robot controller. This program is intended to be a proof of
-concept for more sophisticated controller interfaces.
+concept for more sophisticated controller interfaces. Multi-move control of two robots is also
+supported.
 
 ## Installation
 
@@ -16,6 +17,8 @@ you aren't sure which to use, try using the manual installation first.
 * See [robot_setup_manual.md](doc/robot_setup_manual.md) for manual setup instructions.
 * See [robot_setup_robotware_addin.md](doc/robot_setup_robotware_addin.md) for RobotWare Add-In 
   setup instructions
+* See [robot_multimove_setup_manual.md](doc/robot_multimove_setup_manual.md) for ABB Multi-Move
+  setup to control two robots. See later sections of this doc for more information on Multi-Move.
 
 This contains the robot-side code, that reads
 and executes the contents of `motion_program.bin`. `motion_program.bin`
@@ -257,7 +260,73 @@ timestamp, cmd_num, J1, J2, J3, J4, J5, J6
 85.352, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344
 ```
 
+## Multi-Move Robot Example
+
+Two robots can be controlled using ABB Multi-Move. See 
+[robot_multimove_setup_manual.md](doc/robot_multimove_setup_manual.md) for setup instructions.
+
+They must have exactly the same number of motion commands. The commands
+are passed with the `\ID` parameter corresponding to the command number. `SyncMoveOn` is activated
+to cause the robots to move in sync. The `execute_multimove_motion_program()` function
+of `MotionProgramExecClient` is used to send multi-move programs to the robot.
+
+```python
+import abb_motion_program_exec_client as abb
+
+
+# Fill motion program for T_ROB1
+t1 = abb.robtarget([575,200,780],[.707,0,.707,0],abb.confdata(0,0,-1,1),[0]*6)
+t2 = abb.robtarget([575,-200,980],[.707,0,.707,0],abb.confdata(0,0,-1,1),[0]*6)
+t3 = abb.robtarget([575,0,780],[.707,0,.707,0],abb.confdata(-1,-1,0,1),[0]*6)
+
+my_tool = abb.tooldata(True,abb.pose([0,0,0.1],[1,0,0,0]),abb.loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0)) 
+
+mp = abb.MotionProgram(tool=my_tool)
+mp.MoveAbsJ(abb.jointtarget([5,-20,30,27,-11,-27],[0]*6),abb.v1000,abb.fine)
+mp.MoveL(t1,abb.v1000,abb.fine)
+mp.MoveL(t2,abb.v5000,abb.fine)
+mp.MoveL(t3,abb.v500,abb.fine)
+mp.WaitTime(1)
+mp.MoveL(t1,abb.v5000,abb.z50)
+mp.MoveL(t2,abb.v500,abb.z200)
+mp.MoveL(t3,abb.v5000,abb.fine)
+
+# Fill motion program for T_ROB2. Both programs must have
+# same number of commands
+t1_2 = abb.robtarget([1750,-200,1280],[.707,0,.707,0],abb.confdata(-1,-1,0,1),[0]*6)
+t2_2 = abb.robtarget([1750,200,1480],[.707,0,.707,0],abb.confdata(0,0,-1,1),[0]*6)
+t3_2 = abb.robtarget([1750,0,1280],[.707,0,.707,0],abb.confdata(0,0,0,1),[0]*6)
+
+my_tool2 = abb.tooldata(True,abb.pose([0,0,0.5],[1,0,0,0]),abb.loaddata(0.1,[0,0,0.1],[1,0,0,0],0,0,0)) 
+
+mp2 = abb.MotionProgram(tool=my_tool2)
+mp2.MoveAbsJ(abb.jointtarget([1,1,40,2,-40,-2],[0]*6),abb.v1000,abb.fine)
+mp2.MoveL(t1_2,abb.v1000,abb.fine)
+mp2.MoveL(t2_2,abb.v5000,abb.fine)
+mp2.MoveL(t3_2,abb.v500,abb.fine)
+mp2.WaitTime(1)
+mp2.MoveL(t1_2,abb.v5000,abb.z50)
+mp2.MoveL(t2_2,abb.v500,abb.z200)
+mp2.MoveL(t3_2,abb.v5000,abb.fine)
+
+
+# Execute the motion program on the robot
+# Change base_url to the robot IP address
+client = abb.MotionProgramExecClient(base_url="http://127.0.0.1:80")
+
+# Execute both motion programs simultaneously
+log_results = client.execute_multimove_motion_program([mp,mp2])
+
+# Write log csv to file
+with open("log.csv","wb") as f:
+   f.write(log_results)
+
+# Or convert to string and use in memory
+log_results_str = log_results.decode('ascii')
+print(log_results_str)
+
+```
+
 ## License
 
 Apache 2.0 License, Copyright 2022 Wason Technology, LLC, Rensselaer Polytechnic Institute
-
