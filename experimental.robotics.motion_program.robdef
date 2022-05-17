@@ -19,6 +19,12 @@ using com.robotraconteur.robotics.payload.PayloadInfo
 using com.robotraconteur.robotics.robot.RobotInfo
 using com.robotraconteur.action.ActionStatusCode
 
+struct RobotPose
+    field Pose tcp_pose
+    field double[] joint_position_seed
+    field JointPositionUnits{list} joint_units
+end
+
 struct MoveAbsJ
     field double[] joint_position
     field JointPositionUnits{list} joint_units
@@ -30,7 +36,7 @@ struct MoveAbsJ
 end
 
 struct MoveJ
-    field Pose tcp_pose
+    field RobotPose tcp_pose
     field double tcp_velocity
     field double tcp_acceleration    
     field double blend_radius
@@ -39,7 +45,7 @@ struct MoveJ
 end
 
 struct MoveL
-    field Pose tcp_pose
+    field RobotPose tcp_pose
     field double tcp_velocity
     field double tcp_acceleration    
     field double blend_radius
@@ -48,8 +54,8 @@ struct MoveL
 end
 
 struct MoveC
-    field Pose tcp_pose
-    field Pose tcp_via_pose
+    field RobotPose tcp_pose
+    field RobotPose tcp_via_pose
     field double tcp_velocity
     field double tcp_acceleration    
     field double blend_radius
@@ -78,7 +84,6 @@ struct MotionProgram
 end
 
 struct MotionProgramRobotInfo
-    field DeviceInfo device_info
     field RobotInfo robot_info
     field string{list} supported_commands
     field varvalue{string} extended
@@ -86,7 +91,7 @@ end
 
 struct MotionProgramStatus
     field ActionStatusCode action_status
-    field uint32 current_command
+    field int32 current_command
 end
 
 object MotionProgramRobot
