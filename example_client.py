@@ -77,17 +77,28 @@ def movej(robot_pose,velocity,blend_radius,fine_point):
     cmd.fine_point = fine_point
     return RR.VarValue(cmd,"experimental.robotics.motion_program.MoveJ")
 
+def movec(robot_pose,robot_via_pose,velocity,blend_radius,fine_point):
+    cmd = movec_type()
+    cmd.tcp_pose = robot_pose
+    cmd.tcp_via_pose = robot_via_pose
+    cmd.tcp_velocity = velocity
+    cmd.blend_radius = blend_radius
+    cmd.fine_point = fine_point
+    return RR.VarValue(cmd,"experimental.robotics.motion_program.MoveC")
+
 mp_cmds.append(RR.VarValue(settool,"experimental.robotics.motion_program.SetTool"))
 mp_cmds.append(moveabsj(j1,0.5,0.2,False))
-mp_cmds.append(moveabsj(j2,1,0.1,True))
-mp_cmds.append(moveabsj(j3,2,0.3,False))
-mp_cmds.append(moveabsj(j1,0.5,0.2,True))
+# mp_cmds.append(moveabsj(j2,1,0.1,True))
+# mp_cmds.append(moveabsj(j3,2,0.3,False))
+# mp_cmds.append(moveabsj(j1,0.5,0.2,True))
 
-mp_cmds.append(movel(r1,0.5,0.02,False))
-mp_cmds.append(movel(r2,0.5,0.2,True))
+# mp_cmds.append(movel(r1,0.5,0.02,False))
+# mp_cmds.append(movel(r2,0.5,0.2,True))
 
-mp_cmds.append(movej(r1,0.5,0.02,False))
-mp_cmds.append(movej(r2,0.5,0.2,True))
+# mp_cmds.append(movej(r1,0.5,0.02,False))
+mp_cmds.append(movej(r3,0.5,0.2,True))
+
+mp_cmds.append(movec(r4,r5,0.5,0.2,True))
 
 mp = motionprogram_type()
 
