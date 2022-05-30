@@ -137,6 +137,8 @@ class ExecuteMotionProgramGen:
         if self._thread.is_alive():
             ret = self._action_status_code["running"]
         else:
+            if self._thread_exp:
+                raise self._thread_exp
             raise RR.StopIterationException()
 
     def Close(self):
