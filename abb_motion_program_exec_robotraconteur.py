@@ -81,7 +81,7 @@ def rr_motion_program_to_abb(rr_mp):
             sd = rr_speed_to_abb(cmd.data.tcp_velocity)
             rt = rr_robot_pose_to_abb(cmd.data.tcp_pose)
             rt2 = rr_robot_pose_to_abb(cmd.data.tcp_via_pose)
-            mp.MoveC(rt, rt2, sd, zd)
+            mp.MoveC(rt2, rt,  sd, zd)
         elif cmd.datatype.endswith("WaitTime"):
             mp.WaitTime(cmd.data.time)
         else:
