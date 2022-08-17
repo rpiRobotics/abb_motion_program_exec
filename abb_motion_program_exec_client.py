@@ -489,6 +489,10 @@ class MotionProgramExecClient:
     def resetpp(self):
         res=self._do_post("rw/rapid/execution?action=resetpp")
 
+    def get_ramdisk_path(self):
+        soup = self._do_get("ctrl/$RAMDISK")
+        return soup.find('span', attrs={'class': 'value' }).text
+
     def get_execution_state(self):
         soup = self._do_get("rw/rapid/execution")
         ctrlexecstate=soup.find('span', attrs={'class': 'ctrlexecstate'}).text
@@ -591,12 +595,13 @@ class MotionProgramExecClient:
     def execute_motion_program(self, motion_program: MotionProgram, task="T_ROB1"):
         b = motion_program.get_program_bytes()
         assert len(b) > 0, "Motion program must not be empty"
-        filename = "$temp/motion_program.bin"
+        ramdisk = self.get_ramdisk_path()
+        filename = f"{ramdisk}/motion_program.bin"
         if task != "T_ROB1":
             task_m = re.match(r"^.*[A-Za-z_](\d+)$",task)
             if task_m:
                 filename_ind = int(task_m.group(1))
-                filename = f"$temp/motion_program{filename_ind}.bin"
+                filename = f"{ramdisk}/motion_program{filename_ind}.bin"
         def _upload():            
             self.upload_file(filename, b)
 
@@ -616,14 +621,15 @@ class MotionProgramExecClient:
         for mp in motion_programs:
             b.append(mp.get_program_bytes())
         assert len(b) > 0, "Motion program must not be empty"
-        filenames = []        
+        filenames = []
+        ramdisk = self.get_ramdisk_path()
         for task in tasks:
-            filename = "$temp/motion_program.bin"
+            filename = f"{ramdisk}/motion_program.bin"
             if task != "T_ROB1":
                 task_m = re.match(r"^.*[A-Za-z_](\d+)$",task)
                 if task_m:
                     filename_ind = int(task_m.group(1))
-                    filename = f"$temp/motion_program{filename_ind}.bin"
+                    filename = f"{ramdisk}/motion_program{filename_ind}.bin"
             filenames.append(filename)
 
         assert len(filenames) == len(b)
@@ -695,9 +701,10 @@ class MotionProgramExecClient:
 
         assert found_log_open and found_log_close and len(log_filename) > 0, "Could not find log file messages in robot event log"
 
-        log_contents = self.read_file(f"$temp/{log_filename}")
+        ramdisk = self.get_ramdisk_path()
+        log_contents = self.read_file(f"{ramdisk}/{log_filename}")
         try:
-            self.delete_file(f"$temp/{log_filename}")
+            self.delete_file(f"{ramdisk}/{log_filename}")
         except:
             pass
         return log_contents
