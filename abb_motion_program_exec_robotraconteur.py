@@ -11,6 +11,8 @@ from RobotRaconteurCompanion.Util.AttributesUtil import AttributesUtil
 
 import traceback
 import time
+import io
+import random
 
 def rr_pose_to_abb(rr_pose):
     a = RRN.NamedArrayToArray(rr_pose)
@@ -99,20 +101,37 @@ class MotionExecImpl:
         self.device_info = mp_robot_info.robot_info.device_info
         self.robot_info = mp_robot_info.robot_info
         self.motion_program_robot_info = mp_robot_info
+        self._logs = {}
 
     def execute_motion_program(self, program):
 
         abb_program = rr_motion_program_to_abb(program)
 
-        gen = ExecuteMotionProgramGen(self._abb_client, abb_program)
+        gen = ExecuteMotionProgramGen(self, self._abb_client, abb_program)
 
         return gen
+
+    def execute_motion_program_log(self, program):
+
+        abb_program = rr_motion_program_to_abb(program)
+
+        gen = ExecuteMotionProgramGen(self, self._abb_client, abb_program, save_log = True)
+
+        return gen
+
+    def read_log(self, log_handle):
+        robot_log_np = self._logs.pop(log_handle)
+        return RobotLogGen(robot_log_np)
+
+    def clear_logs(self):
+        self._logs.clear()
 
 
 
 class ExecuteMotionProgramGen:
 
-    def __init__(self, abb_client, motion_program):
+    def __init__(self, parent, abb_client, motion_program, save_log = False):
+        self._parent = parent
         self._abb_client = abb_client
         self._motion_program = motion_program
         self._action_status_code = RRN.GetConstants("com.robotraconteur.action")["ActionStatusCode"]
@@ -121,6 +140,8 @@ class ExecuteMotionProgramGen:
         self._wait_evt = threading.Event()
         self._thread_exp = None
         self._mp_status = RRN.GetStructureType("experimental.robotics.motion_program.MotionProgramStatus")
+        self._log_handle = 0
+        self._save_log = save_log
 
     def Next(self):
         if self._thread_exp is not None:
@@ -135,8 +156,15 @@ class ExecuteMotionProgramGen:
             return ret
         self._wait_evt.wait(timeout=1)
         if self._thread.is_alive():
-            ret = self._action_status_code["running"]
+            ret.action_status = self._action_status_code["running"]
+            return ret
         else:
+            if self._log_handle != 0:
+                self._status = self._action_status_code["complete"]
+                ret.action_status = self._status
+                ret.log_handle = self._log_handle
+                self._log_handle = 0
+                return ret
             if self._thread_exp:
                 raise self._thread_exp
             raise RR.StopIterationException()
@@ -151,13 +179,54 @@ class ExecuteMotionProgramGen:
     def _run(self):
         try:
             print("Start Motion Program!")
-            self._abb_client.execute_motion_program(self._motion_program)
+            robot_log_csv = self._abb_client.execute_motion_program(self._motion_program)
+            if self._save_log:
+                robot_log_io = io.StringIO(robot_log_csv.decode("ascii"))
+                robot_log_io.seek(0)
+                robot_log_np = np.genfromtxt(robot_log_io, dtype=np.float64, skip_header=1, delimiter=",")
+                log_handle = random.randint(0,0xFFFFFFF)
+                self._parent._logs[log_handle] = robot_log_np
+                self._log_handle = log_handle
             print("Motion Program Complete!")
         except BaseException as e:
             self._thread_exp = e
             traceback.print_exc()
         self._wait_evt.set()
 
+
+class RobotLogGen:
+    def __init__(self, robot_log_np, ):
+        self.robot_log_np = robot_log_np
+        self.closed = False
+        self.aborted = False
+        self.lock = threading.Lock()
+        self._mp_log_part = RRN.GetStructureType("experimental.robotics.motion_program.MotionProgramLogPart")
+
+    def Next(self):
+        with self.lock:
+            if self.aborted:
+                raise RR.OperationAbortedException("Log aborted")
+
+            if self.closed:
+                raise RR.StopIterationException()
+
+            ret = self._mp_log_part()
+
+            # All current paths expect to be within 10 MB limit
+            ret.time = self.robot_log_np[:,0].flatten()
+            ret.command_number = self.robot_log_np[:,1].flatten().astype(np.int32)
+            ret.joints = self.robot_log_np[:,2:]
+
+            self.closed = True
+            return ret
+
+    def Abort(self):
+        self.aborted = True
+
+    def Close(self):
+        self.closed = True
+
+            
 
 
 def main():

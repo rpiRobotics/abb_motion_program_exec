@@ -88,29 +88,40 @@ def movec(robot_pose,robot_via_pose,velocity,blend_radius,fine_point):
 
 mp_cmds.append(RR.VarValue(settool,"experimental.robotics.motion_program.SetTool"))
 mp_cmds.append(moveabsj(j1,0.5,0.2,False))
-# mp_cmds.append(moveabsj(j2,1,0.1,True))
-# mp_cmds.append(moveabsj(j3,2,0.3,False))
-# mp_cmds.append(moveabsj(j1,0.5,0.2,True))
+mp_cmds.append(moveabsj(j2,1,0.1,True))
+mp_cmds.append(moveabsj(j3,2,0.3,False))
+mp_cmds.append(moveabsj(j1,0.5,0.2,True))
 
-# mp_cmds.append(movel(r1,0.5,0.02,False))
-# mp_cmds.append(movel(r2,0.5,0.2,True))
+mp_cmds.append(movel(r1,0.5,0.02,False))
+mp_cmds.append(movel(r2,0.5,0.2,True))
 
-# mp_cmds.append(movej(r1,0.5,0.02,False))
+mp_cmds.append(movej(r1,0.5,0.02,False))
 mp_cmds.append(movej(r3,0.5,0.2,True))
 
-mp_cmds.append(movec(r4,r5,0.5,0.2,True))
+# mp_cmds.append(movec(r4,r5,0.5,0.2,True))
 
 mp = motionprogram_type()
 
 mp.motion_program_commands = mp_cmds
 
-mp_gen = c.execute_motion_program(mp)
+mp_gen = c.execute_motion_program_log(mp)
+res = None
 
 while True:
     try:
-        mp_gen.Next()
+        res = mp_gen.Next()
+        print(res)
     except RR.StopIterationException:
         break
 
+print(f"log_handle: {res.log_handle}")
+
+robot_log = c.read_log(res.log_handle).NextAll()[0]
+
+print(robot_log.time)
+print(robot_log.command_number)
+print(robot_log.joints)
+
+c.clear_logs()
 
 print("Done!")

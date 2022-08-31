@@ -92,6 +92,13 @@ end
 struct MotionProgramStatus
     field ActionStatusCode action_status
     field int32 current_command
+    field uint32 log_handle
+end
+
+struct MotionProgramLogPart
+    field double[] time
+    field int32[] command_number
+    field double[*] joints
 end
 
 object MotionProgramRobot
@@ -101,6 +108,10 @@ object MotionProgramRobot
     property MotionProgramRobotInfo motion_program_robot_info [readonly,nolock]
 
     function MotionProgramStatus{generator} execute_motion_program(MotionProgram program)
+
+    function MotionProgramStatus{generator} execute_motion_program_log(MotionProgram program)
+    function MotionProgramLogPart{generator} read_log(uint32 log_handle)
+    function void clear_logs()
 
     function varvalue getf_param(string param_name)
     function void setf_param(string param_name, varvalue value)
