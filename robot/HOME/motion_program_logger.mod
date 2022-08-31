@@ -58,7 +58,7 @@ MODULE motion_program_logger
     PROC motion_program_log_open()
         VAR string log_filename;
         log_filename := "log-" + rmq_timestamp + ".csv";
-        Open "TEMP:" \File:=log_filename, log_io_device, \Write;
+        Open "RAMDISK:" \File:=log_filename, log_io_device, \Write;
         Write log_io_device,"timestamp, "\NoNewLine;
         Write log_io_device,"cmd_num, "\NoNewLine;
         Write log_io_device,"J1, "\NoNewLine;
