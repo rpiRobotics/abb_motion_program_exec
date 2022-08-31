@@ -585,8 +585,14 @@ class MotionProgramExecClient:
             type_=find_val('type')
             taskstate=find_val('taskstate')
             excstate=find_val('excstate')
-            active=find_val('active') == "On"
-            motiontask=find_val("motiontask").lower() == "true"
+            try:
+                active=find_val('active') == "On"
+            except:
+                active=False
+            try:
+              motiontask=find_val("motiontask").lower() == "true"
+            except:
+                motiontask=False
 
             o[name]=RAPIDTaskState(name,type_,taskstate,excstate,active,motiontask)
         
