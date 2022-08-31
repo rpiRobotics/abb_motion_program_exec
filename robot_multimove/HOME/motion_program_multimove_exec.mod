@@ -65,7 +65,7 @@ MODULE motion_program_exec
         VAR tooldata mtool;
         VAR string timestamp;
         motion_program_state{task_ind}.motion_program_filename:=filename;
-        Open "TEMP:" \File:=filename, motion_program_io_device, \Read \Bin;
+        Open "RAMDISK:" \File:=filename, motion_program_io_device, \Read \Bin;
         IF NOT try_motion_program_read_num(ver) THEN
             RAISE ERR_FILESIZE;
         ENDIF
