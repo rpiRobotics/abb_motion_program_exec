@@ -7,7 +7,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='abb_motion_program_exec',
-    version='0.2.0.post1',
+    version='0.3.0',
     description='Simple module to execute motion commands on ABB robots and log results',
     url='https://github.com/johnwason/abb_motion_program_exec',
     py_modules=['abb_motion_program_exec_client'],

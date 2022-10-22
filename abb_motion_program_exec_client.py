@@ -23,6 +23,7 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import datetime
+from enum import IntEnum
 
 class speeddata(NamedTuple):
     v_tcp: float
@@ -109,6 +110,14 @@ class loaddata(NamedTuple):
     ix: float
     iy: float
     iz: float
+
+class CirPathModeSwitch(IntEnum):
+    PathFrame = 1
+    ObjectFrame = 2
+    CirPointOri = 3
+    Wrist45 = 4
+    Wrist46 = 5
+    Wrist56 = 6
 
 class tooldata(NamedTuple):
     robhold: bool
@@ -284,6 +293,25 @@ def _waittime_io_to_rapid(f: io.IOBase):
     t = _read_num(f)
     return f"WaitTime {t};"
 
+def _cirpathmode_io_to_rapid(f: io.IOBase):
+    cmd_num = _read_num(f)
+    op = _read_num(f)
+    assert op == 0x6
+    t = _read_num(f)
+    if op == 1:
+        return r"CirPathMode\PathFrame;"
+    if op == 2:
+        return r"CirPathMode\ObjectFrame;"
+    if op == 3:
+        return r"CirPathMode\CirPointOri;"
+    if op == 4:
+        return r"CirPathMode\Wrist45;"
+    if op == 5:
+        return r"CirPathMode\Wrist46;"
+    if op== 6:
+        return r"CirPathMode\Wrist56;"
+    assert False, "Invalid CirPathMode switch"
+
 tool0 = tooldata(True,pose([0,0,0],[1,0,0,0]),loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0))        
 
 class MotionProgram:
@@ -297,7 +325,7 @@ class MotionProgram:
 
         self._f = io.BytesIO()
         # Version number
-        self._f.write(_num_to_bin(10003))
+        self._f.write(_num_to_bin(10004))
         if tool is None:
             tool = tool0
         self._f.write(_tooldata_to_bin(tool))
@@ -359,6 +387,14 @@ class MotionProgram:
         self._f.write(_num_to_bin(t))
         self._cmd_num+=1
 
+    def CirPathMode(self, switch: CirPathModeSwitch):
+        val = switch.value
+        assert val >=1 and val <= 6, "Invalid CirPathMode switch"
+        self._f.write(_num_to_bin(self._cmd_num))
+        self._f.write(_num_to_bin(0x6))
+        self._f.write(_num_to_bin(val))
+        self._cmd_num+=1
+
     def get_program_bytes(self):
         return self._f.getvalue()
 
@@ -397,6 +433,8 @@ class MotionProgram:
                 print(f"        {_movec_io_to_rapid(f)}",file=o)
             elif op == 0x5:
                 print(f"        {_waittime_io_to_rapid(f)}",file=o)
+            elif op == 0x6:
+                print(f"        {_cirpathmode_io_to_rapid(f)}",file=o)
             else:
                 assert False, f"Invalid command opcode: {op}"
         
@@ -784,6 +822,7 @@ def main():
 
     mp.MoveJ(r3,v5000,fine)
 
+    mp.CirPathMode(CirPathModeSwitch.CirPointOri)
     mp.MoveC(r4,r5,v200,z10)
     mp.MoveC(r4,r3,v50,fine)
 
