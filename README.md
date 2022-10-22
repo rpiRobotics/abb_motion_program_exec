@@ -229,6 +229,7 @@ mp.WaitTime(2.5)
 
 mp.MoveJ(r3,abb.v5000,abb.fine)
 
+mp.CirPathMode(abb.CirPathModeSwitch.CirPointOri)
 mp.MoveC(r4,r5,abb.v200,abb.z10)
 mp.MoveC(r4,r3,abb.v50,abb.fine)
 
