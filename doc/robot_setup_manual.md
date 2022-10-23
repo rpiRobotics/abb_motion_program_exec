@@ -7,7 +7,7 @@ but is also less flexible and requires using the Installation Manager which can 
 This documents covers manually installing the software on a virtual controller in Robot Studio. See
 robot_setup_robotware_addin.md for manual setup instructions.
 
-## Step 1: Install RobotWare 6.13
+## Step 1: Install RobotWare 6.14
 
 **This section only needs to be completed once on RobotWare installation.**
 
@@ -18,10 +18,10 @@ Once installed, open RobotStudio and click on the "Add-Ins" tab on the top of th
 
 ![](figures/robotstudio_addin_tab.png)
 
-First, install the newest version of RobotWare 6.13 for IRC5 controllers. Versions greater 
-than RobotWare 6.13 may work, but they have not been tested. In the "RobotApps" -> "Gallery" window,
-select RobotWare for IRC5. On the right, select "Version" to be the greatest version of 6.13.
-In this example, version 6.13.01 is the greatest version available. Click "Add", accept the next
+First, install the newest version of RobotWare 6.14 for IRC5 controllers. Versions greater 
+than RobotWare 6.14 may work, but they have not been tested. In the "RobotApps" -> "Gallery" window,
+select RobotWare for IRC5. On the right, select "Version" to be the greatest version of 6.14.
+In this example, version 6.14.00.01 is the greatest version available. Click "Add", accept the next
 window, and wait for the installation to finish.
 
 ![](figures/robotstudio_addin_robotware_irc5.png)
@@ -31,7 +31,7 @@ RobotStudio is now ready to create a solution.
 ## 2. Create Solution and Install Robot
 
 Click on the "File" tab, and then "Solution with Station and Virtual Controller". Select the 
-RobotWare version installed in Step 1, in this case "6.13.01.00". For this example, the 
+RobotWare version installed in Step 1, in this case "6.14.00.01". For this example, the 
 "IRB 1200 5kg 0.9m" robot is used. Any 6 or 7 axis single-arm robot can be used instead. Change
 the "Solution Name" if desired. Click "Create" when ready.
 
