@@ -1,6 +1,6 @@
 MODULE motion_program_exec
 
-    CONST num motion_program_file_version:=10004;
+    CONST num motion_program_file_version:=10005;
 
     PERS motion_program_state_type motion_program_state;
 
@@ -9,6 +9,7 @@ MODULE motion_program_exec
     LOCAL VAR num motion_program_bytes_offset;
 
     PERS tooldata motion_program_tool;
+    PERS wobjdata motion_program_wobj;
 
     VAR rmqslot logger_rmq;
 
@@ -43,6 +44,7 @@ MODULE motion_program_exec
     PROC open_motion_program_file(string filename)
         VAR num ver;
         VAR tooldata mtool;
+        VAR wobjdata mwobj;
         VAR string timestamp;
         motion_program_state.motion_program_filename:=filename;
         Open "RAMDISK:"\File:=filename,motion_program_io_device,\Read\Bin;
@@ -57,6 +59,10 @@ MODULE motion_program_exec
         IF NOT try_motion_program_read_td(mtool) THEN
             RAISE ERR_FILESIZE;
         ENDIF
+        
+        IF NOT try_motion_program_read_wd(mwobj) THEN
+            RAISE ERR_FILESIZE;
+        ENDIF
 
         IF NOT try_motion_program_read_string(timestamp) THEN
             RAISE ERR_FILESIZE;
@@ -69,6 +75,7 @@ MODULE motion_program_exec
         ErrWrite\I,"Motion Program Opened","Motion Program Opened with timestamp: "+timestamp;
 
         motion_program_tool:=mtool;
+        motion_program_wobj:=mwobj;
     ENDPROC
 
     PROC close_motion_program_file()
@@ -147,7 +154,7 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        MoveAbsJ j,sd,zd,motion_program_tool;
+        MoveAbsJ j,sd,zd,motion_program_tool\WObj:=motion_program_wobj;
         RETURN TRUE;
     ENDFUNC
 
@@ -162,7 +169,7 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        TriggJ rt,sd,motion_trigg_data,zd,motion_program_tool;
+        TriggJ rt,sd,motion_trigg_data,zd,motion_program_tool\WObj:=motion_program_wobj;
         RETURN TRUE;
 
     ENDFUNC
@@ -178,7 +185,7 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        TriggL rt,sd,motion_trigg_data,zd,motion_program_tool;
+        TriggL rt,sd,motion_trigg_data,zd,motion_program_tool\WObj:=motion_program_wobj;
         RETURN TRUE;
 
     ENDFUNC
@@ -196,7 +203,7 @@ MODULE motion_program_exec
         ) THEN
             RETURN FALSE;
         ENDIF
-        TriggC rt1,rt2,sd,motion_trigg_data,zd,motion_program_tool;
+        TriggC rt1,rt2,sd,motion_trigg_data,zd,motion_program_tool\WObj:=motion_program_wobj;
         RETURN TRUE;
 
     ENDFUNC
@@ -221,13 +228,10 @@ MODULE motion_program_exec
         TEST switch
         CASE 1:
             CirPathMode\PathFrame;
-            TPWrite "PathFrame";
         CASE 2:
             CirPathMode\ObjectFrame;
-            TPWrite "ObjectFrame";
         CASE 3:
             CirPathMode\CirPointOri;
-            TPWrite "CirPointOri";
         CASE 4:
             CirPathMode\Wrist45;
         CASE 5:
@@ -235,7 +239,6 @@ MODULE motion_program_exec
         CASE 6:
             CirPathMode\Wrist56;
         ENDTEST
-        TPWrite "CirPathMode Done";
         RETURN TRUE;
     ENDFUNC
 
@@ -340,6 +343,36 @@ MODULE motion_program_exec
             RETURN FALSE;
         ENDIF
         td.robhold:=robhold_num<>0;
+        RETURN TRUE;
+    ENDFUNC
+    
+    FUNC bool try_motion_program_read_wd(INOUT wobjdata wd)
+        VAR num robhold_num;
+        VAR num ufprog_num;
+        IF NOT (
+            try_motion_program_read_num(robhold_num)
+            AND try_motion_program_read_num(ufprog_num)
+            AND try_motion_program_read_string(wd.ufmec)
+            AND try_motion_program_read_num(wd.uframe.trans.x)
+            AND try_motion_program_read_num(wd.uframe.trans.y)
+            AND try_motion_program_read_num(wd.uframe.trans.z)
+            AND try_motion_program_read_num(wd.uframe.rot.q1)
+            AND try_motion_program_read_num(wd.uframe.rot.q2)
+            AND try_motion_program_read_num(wd.uframe.rot.q3)
+            AND try_motion_program_read_num(wd.uframe.rot.q4)
+            AND try_motion_program_read_num(wd.oframe.trans.x)
+            AND try_motion_program_read_num(wd.oframe.trans.y)
+            AND try_motion_program_read_num(wd.oframe.trans.z)
+            AND try_motion_program_read_num(wd.oframe.rot.q1)
+            AND try_motion_program_read_num(wd.oframe.rot.q2)
+            AND try_motion_program_read_num(wd.oframe.rot.q3)
+            AND try_motion_program_read_num(wd.oframe.rot.q4)
+        )
+        THEN
+            RETURN FALSE;
+        ENDIF
+        wd.robhold:=robhold_num<>0;
+        wd.ufprog:=ufprog_num<>0;
         RETURN TRUE;
     ENDFUNC
 

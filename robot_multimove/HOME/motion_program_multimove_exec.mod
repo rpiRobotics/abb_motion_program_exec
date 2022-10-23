@@ -1,6 +1,6 @@
 MODULE motion_program_exec
 
-    CONST num motion_program_file_version:=10004;
+    CONST num motion_program_file_version:=10005;
 
     PERS motion_program_state_type motion_program_state{2};
 
@@ -10,6 +10,8 @@ MODULE motion_program_exec
 
     PERS tooldata motion_program_tool1;
     PERS tooldata motion_program_tool2;
+    PERS wobjdata motion_program_wobj1;
+    PERS wobjdata motion_program_wobj2;
 
     VAR rmqslot logger_rmq;
 
@@ -65,6 +67,7 @@ MODULE motion_program_exec
     PROC open_motion_program_file(string filename)
         VAR num ver;
         VAR tooldata mtool;
+        VAR wobjdata mwobj;
         VAR string timestamp;
         motion_program_state{task_ind}.motion_program_filename:=filename;
         Open "RAMDISK:"\File:=filename,motion_program_io_device,\Read\Bin;
@@ -77,6 +80,10 @@ MODULE motion_program_exec
         ENDIF
 
         IF NOT try_motion_program_read_td(mtool) THEN
+            RAISE ERR_FILESIZE;
+        ENDIF
+        
+        IF NOT try_motion_program_read_wd(mwobj) THEN
             RAISE ERR_FILESIZE;
         ENDIF
 
@@ -93,6 +100,11 @@ MODULE motion_program_exec
             motion_program_tool1:=mtool;
         ELSE
             motion_program_tool2:=mtool;
+        ENDIF
+        IF task_ind=1 THEN
+            motion_program_wobj1:=mwobj;
+        ELSE
+            motion_program_wobj2:=mwobj;
         ENDIF
     ENDPROC
 
@@ -174,15 +186,15 @@ MODULE motion_program_exec
         ENDIF
         IF IsSyncMoveOn() THEN
             IF task_ind=1 THEN
-                MoveAbsJ j,\ID:=cmd_num,sd,zd,motion_program_tool1;
+                MoveAbsJ j,\ID:=cmd_num,sd,zd,motion_program_tool1\Wobj:=motion_program_wobj1;
             ELSE
-                MoveAbsJ j,\ID:=cmd_num,sd,zd,motion_program_tool2;
+                MoveAbsJ j,\ID:=cmd_num,sd,zd,motion_program_tool2\Wobj:=motion_program_wobj2;
             ENDIF
         ELSE
             IF task_ind=1 THEN
-                MoveAbsJ j,sd,zd,motion_program_tool1;
+                MoveAbsJ j,sd,zd,motion_program_tool1\Wobj:=motion_program_wobj1;
             ELSE
-                MoveAbsJ j,sd,zd,motion_program_tool2;
+                MoveAbsJ j,sd,zd,motion_program_tool2\Wobj:=motion_program_wobj2;
             ENDIF
         ENDIF
         RETURN TRUE;
@@ -201,15 +213,15 @@ MODULE motion_program_exec
         ENDIF
         IF IsSyncMoveON() THEN
             IF task_ind=1 THEN
-                TriggJ rt,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool1;
+                TriggJ rt,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool1\Wobj:=motion_program_wobj1;
             ELSE
-                TriggJ rt,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool2;
+                TriggJ rt,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool2\Wobj:=motion_program_wobj2;
             ENDIF
         ELSE
             IF task_ind=1 THEN
-                TriggJ rt,sd,motion_trigg_data,zd,motion_program_tool1;
+                TriggJ rt,sd,motion_trigg_data,zd,motion_program_tool1\Wobj:=motion_program_wobj1;
             ELSE
-                TriggJ rt,sd,motion_trigg_data,zd,motion_program_tool2;
+                TriggJ rt,sd,motion_trigg_data,zd,motion_program_tool2\Wobj:=motion_program_wobj2;
             ENDIF
         ENDIF
         RETURN TRUE;
@@ -229,15 +241,15 @@ MODULE motion_program_exec
         ENDIF
         IF IsSyncMoveOn() THEN
             IF task_ind=1 THEN
-                TriggL rt,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool1;
+                TriggL rt,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool1\Wobj:=motion_program_wobj1;
             ELSE
-                TriggL rt,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool2;
+                TriggL rt,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool2\Wobj:=motion_program_wobj2;
             ENDIF
         ELSE
             IF task_ind=1 THEN
-                TriggL rt,sd,motion_trigg_data,zd,motion_program_tool1;
+                TriggL rt,sd,motion_trigg_data,zd,motion_program_tool1\Wobj:=motion_program_wobj1;
             ELSE
-                TriggL rt,sd,motion_trigg_data,zd,motion_program_tool2;
+                TriggL rt,sd,motion_trigg_data,zd,motion_program_tool2\Wobj:=motion_program_wobj2;
             ENDIF
         ENDIF
         RETURN TRUE;
@@ -259,15 +271,15 @@ MODULE motion_program_exec
         ENDIF
         IF IsSyncMoveOn() THEN
             IF task_ind=1 THEN
-                TriggC rt1,rt2,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool1;
+                TriggC rt1,rt2,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool1\Wobj:=motion_program_wobj1;
             ELSE
-                TriggC rt1,rt2,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool2;
+                TriggC rt1,rt2,\ID:=cmd_num,sd,motion_trigg_data,zd,motion_program_tool2\Wobj:=motion_program_wobj2;
             ENDIF
         ELSE
             IF task_ind=1 THEN
-                TriggC rt1,rt2,sd,motion_trigg_data,zd,motion_program_tool1;
+                TriggC rt1,rt2,sd,motion_trigg_data,zd,motion_program_tool1\Wobj:=motion_program_wobj1;
             ELSE
-                TriggC rt1,rt2,sd,motion_trigg_data,zd,motion_program_tool2;
+                TriggC rt1,rt2,sd,motion_trigg_data,zd,motion_program_tool2\Wobj:=motion_program_wobj2;
             ENDIF
         ENDIF
         RETURN TRUE;
@@ -409,6 +421,36 @@ MODULE motion_program_exec
             RETURN FALSE;
         ENDIF
         td.robhold:=robhold_num<>0;
+        RETURN TRUE;
+    ENDFUNC
+    
+    FUNC bool try_motion_program_read_wd(INOUT wobjdata wd)
+        VAR num robhold_num;
+        VAR num ufprog_num;
+        IF NOT (
+            try_motion_program_read_num(robhold_num)
+            AND try_motion_program_read_num(ufprog_num)
+            AND try_motion_program_read_string(wd.ufmec)
+            AND try_motion_program_read_num(wd.uframe.trans.x)
+            AND try_motion_program_read_num(wd.uframe.trans.y)
+            AND try_motion_program_read_num(wd.uframe.trans.z)
+            AND try_motion_program_read_num(wd.uframe.rot.q1)
+            AND try_motion_program_read_num(wd.uframe.rot.q2)
+            AND try_motion_program_read_num(wd.uframe.rot.q3)
+            AND try_motion_program_read_num(wd.uframe.rot.q4)
+            AND try_motion_program_read_num(wd.oframe.trans.x)
+            AND try_motion_program_read_num(wd.oframe.trans.y)
+            AND try_motion_program_read_num(wd.oframe.trans.z)
+            AND try_motion_program_read_num(wd.oframe.rot.q1)
+            AND try_motion_program_read_num(wd.oframe.rot.q2)
+            AND try_motion_program_read_num(wd.oframe.rot.q3)
+            AND try_motion_program_read_num(wd.oframe.rot.q4)
+        )
+        THEN
+            RETURN FALSE;
+        ENDIF
+        wd.robhold:=robhold_num<>0;
+        wd.ufprog:=ufprog_num<>0;
         RETURN TRUE;
     ENDFUNC
 
