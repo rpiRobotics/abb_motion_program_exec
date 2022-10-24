@@ -9,7 +9,7 @@ as examples. These can be substituted for other 6-axis ABB robots.
 
 See robot_setup_manual.md for instructions to set up for single robot use.
 
-## Step 1: Install RobotWare 6.13
+## Step 1: Install RobotWare 6.14
 
 **This section only needs to be completed once on RobotWare installation.**
 
@@ -20,10 +20,10 @@ Once installed, open RobotStudio and click on the "Add-Ins" tab on the top of th
 
 ![](figures/robotstudio_addin_tab.png)
 
-First, install the newest version of RobotWare 6.13 for IRC5 controllers. Versions greater 
-than RobotWare 6.13 may work, but they have not been tested. In the "RobotApps" -> "Gallery" window,
-select RobotWare for IRC5. On the right, select "Version" to be the greatest version of 6.13.
-In this example, version 6.13.01 is the greatest version available. Click "Add", accept the next
+First, install the newest version of RobotWare 6.14 for IRC5 controllers. Versions greater 
+than RobotWare 6.14 may work, but they have not been tested. In the "RobotApps" -> "Gallery" window,
+select RobotWare for IRC5. On the right, select "Version" to be the greatest version of 6.14.
+In this example, version 6.14.00.01 is the greatest version available. Click "Add", accept the next
 window, and wait for the installation to finish.
 
 ![](figures/robotstudio_addin_robotware_irc5.png)
@@ -32,8 +32,8 @@ RobotStudio is now ready to create a solution.
 
 ## 2. Create Solution
 
-Click on the "File" tab, and then "Solution with Station and Virtual Controller". Select "Solution
-with EmptyStation" Change the "Solution Name" if desired. Click "Create".
+Click on the "File" tab, "New", and then "Project". Uncheck "Include a Robot and Virtual Solution". 
+Change the project "Name" if desired. Click "Create".
 
 ![](figures/multimove/robotstudio_multimove_new_solution.png)
 
@@ -44,10 +44,10 @@ New we will add two robots to the solution. First, add the IRB 1200. Click "Home
 
 ![](figures/multimove/robotstudio_multimove_add_irb1200.png)
 
-If a window "Select library for '1200.09_5_TypeB (ROB_1)" appears, select "IRB1200_5_90_STD_03" 
-and click "OK".
+If a window "IRB 1200" appears, select "Standard", "0.9 m", "Standard". The bottom right should show 
+"IRB1200_5_90_STD_03". Click "OK".
 
-![](figures/robotstudio_irb1200_select.png)
+![](figures/multimove/robotstudio_irb1200_select2.png)
 
 Right click on "IRB1200_5_90_STD_03" under "Layout", click "Position" -> "Set Position". In the
 "Set Position" box in the upper left, type in xyz = (1000,0,500), rpy = (0,0,180). Click "Apply"
@@ -95,7 +95,7 @@ Click "OK"
 
 ![](figures/multimove/robotstudio_multimove_controller_options3.png)
 
-Click "Finish".
+**Uncheck "Task Frame(s) aligned with"**. Click "Finish".
 
 ![](figures/multimove/robotstudio_multimove_controller_options_finish.png)
 
@@ -105,6 +105,8 @@ RobotStudio will work for a minute or two to complete creation of the controller
 ![](figures/multimove/robotstudio_multimove_controller_tasks3.png)
 
 ## 5. Install RAPID Software
+
+![](figures/multimove/robotstudio_multimove_pstart.png)
 
 Next, copy over the RAPID files to the controller "HOME" directory. For the virtual controller,
 right click on "HOME" in the controller tree. (This is the same controller that options were
@@ -142,33 +144,33 @@ your system to verify installation:
 
 ![](figures/robotstudio_addin_installed5.png)
 
-## 6. Set Robot Base Frame
+## 6. Adjust Robot Base Frame
 
 *This step is optional. Applications can arbitrarily define robot base frames as best suits the
 application.*
 
 Robot Studio will by default change the controller base frame to match the location in Robot Studio.
-This is undesirable, since generally the motion programs will use the robot base frame of each
-robot. The parameters can be adjusted on the "Controller" panel by expanding "Configuration",
-selecting "Motion", choosing the "Robot" configuration type, and scrolling to the right
-to show the Base Frame parameters.
+The base frame of the robots are configured on the "Motion" -> "Robot" configuration page. Since we unchecked
+"Task frames aligned with:" during controller creation, the robot base origins match their positions during
+scene creation:
 
 ![](figures/multimove/robotstudio_multimove_base_frame1.png)
 
-As can be seen, the base frame is not at the robot origins. Double click on each robot,
-and enter the values to unity, as shown. Click OK.
+The base frame values con be adjusted as desired. Robot Studio will attempt to keep these values in sync if
+the robots are moved in the scene.
 
-![](figures/multimove/robotstudio_multimove_base_frame2.png)
+When a robot is moved, **DO NOT UPDATE THE TASK FRAME** when prompted. This will move the origin of the task frame out 
+of sync with the origin of the Robot Studio scene, which can be very confusing. The task frame can be directly edited
+by clicking "Home" -> "Paths and Targets" -> Right click on "Controller1" in the tree view, and click "Task Frames".
+All entries should be zero to keep the task frame aligned with the Robot Studio world frame.
 
-The base frames should now be as shown:
+![](figures/multimove/robotstudio_multimove_base_frame5.png)
 
-![](figures/multimove/robotstudio_multimove_base_frame3.png)
+Click "Yes" when prompted to "update controller configuration and restart". This will update the "Motion" -> "Robot"
+origins discussed previously.
 
-Restart the controller for the changes to take effect.
+![](figures/multimove/robotstudio_multimove_base_frame6.png)
 
-Click "No" when asked to change the base frame of the robot to match the virtual controller.
-
-![](figures/multimove/robotstudio_multimove_base_frame4.png)
 
 ## 7. Run Programs
 

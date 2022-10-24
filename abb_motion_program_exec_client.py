@@ -124,6 +124,13 @@ class tooldata(NamedTuple):
     tframe: pose
     tload : loaddata
 
+class wobjdata(NamedTuple):
+    robhold: bool
+    ufprog: bool
+    ufmec: str
+    uframe: pose
+    oframe: pose
+
 _speeddata_struct_fmt = struct.Struct("<4f")
 def _speeddata_to_bin(z: speeddata):
     return _speeddata_struct_fmt.pack(
@@ -176,6 +183,13 @@ _num_struct_fmt = struct.Struct("<f")
 def _num_to_bin(f):
     return _num_struct_fmt.pack(f)
 
+_intnum_struct_fmt = struct.Struct("<i")
+def _intnum_to_bin(f):
+    return _intnum_struct_fmt.pack(f)
+
+def _str_to_bin(s: str):
+    return _num_to_bin(len(s)) + s.encode('ascii')
+
 _loaddata_struct_fmt = struct.Struct("<11f")
 def _loaddata_to_bin(l: loaddata):
     cog = _fix_array(l.cog,3)
@@ -190,6 +204,14 @@ def _tooldata_to_bin(td: tooldata):
     tload_bin = _loaddata_to_bin(td.tload)
     return robhold_bin + tframe_bin + tload_bin
 
+def _wobjdata_to_bin(wd: wobjdata):
+    robhold_bin = _num_to_bin(0.0 if not wd.robhold else 1.0)
+    ufprog_bin = _num_to_bin(0.0 if not wd.ufprog else 1.0)
+    ufmec_bin = _str_to_bin(wd.ufmec)
+    uframe_bin = _pose_to_bin(wd.uframe)
+    oframe_bin = _pose_to_bin(wd.oframe)
+    return robhold_bin + ufprog_bin + ufmec_bin + uframe_bin + oframe_bin
+
 def _read_num(f: io.IOBase):
     b = f.read(4)
     return _num_struct_fmt.unpack(b)[0]
@@ -199,6 +221,11 @@ def _read_nums(f: io.IOBase, n: int):
 
 def _read_struct_io(f: io.IOBase, s: struct.Struct):
     return s.unpack(f.read(s.size))
+
+def _read_str_to_rapid(f: io.IOBase):
+    l = int(_read_num(f))
+    s_ascii = f.read(l)
+    return "\"" + s_ascii.decode('ascii') + "\""
 
 def _nums_to_rapid_array(nums: List[float]):
     return "[" + ", ".join([str(n) for n in nums]) + "]"
@@ -247,6 +274,16 @@ def _tooldata_io_to_rapid(f: io.IOBase):
     tframe_str = _pose_io_to_rapid(f)
     tload_str = _loaddata_io_to_rapid(f)
     return f"[{robhold_str},{tframe_str},{tload_str}]"
+
+def _wobjdata_io_to_rapid(f: io.IOBase):
+    robhold_num = _read_num(f)
+    robhold_str = "TRUE" if robhold_num != 0 else "FALSE"
+    ufprog_num = _read_num(f)
+    ufprog_str = "TRUE" if ufprog_num != 0 else "FALSE"
+    ufmec_str = _read_str_to_rapid(f)
+    uframe_str = _pose_io_to_rapid(f)
+    oframe_str = _pose_io_to_rapid(f)
+    return f"[{robhold_str},{ufprog_str},{ufmec_str},{uframe_str},{oframe_str}]"
 
 def _moveabsj_io_to_rapid(f: io.IOBase):
     cmd_num = _read_num(f)
@@ -312,10 +349,11 @@ def _cirpathmode_io_to_rapid(f: io.IOBase):
         return r"CirPathMode\Wrist56;"
     assert False, "Invalid CirPathMode switch"
 
-tool0 = tooldata(True,pose([0,0,0],[1,0,0,0]),loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0))        
+tool0 = tooldata(True,pose([0,0,0],[1,0,0,0]),loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0))
+wobj0 = wobjdata(False, True, "", pose([0,0,0],[1,0,0,0]), pose([0,0,0],[1,0,0,0]))        
 
 class MotionProgram:
-    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, timestamp: str = None):
+    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, wobj: wobjdata = None, timestamp: str = None):
 
         if timestamp is None:
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S-%f")[:-2]
@@ -325,13 +363,14 @@ class MotionProgram:
 
         self._f = io.BytesIO()
         # Version number
-        self._f.write(_num_to_bin(10004))
+        self._f.write(_num_to_bin(10005))
         if tool is None:
             tool = tool0
+        if wobj is None:
+            wobj = wobj0
         self._f.write(_tooldata_to_bin(tool))
-        timestamp_ascii = timestamp.encode("ascii")
-        self._f.write(_num_to_bin(len(timestamp_ascii)))
-        self._f.write(timestamp_ascii)
+        self._f.write(_wobjdata_to_bin(wobj))
+        self._f.write(_str_to_bin(timestamp))
         self._cmd_num=first_cmd_num
 
     def MoveAbsJ(self, to_joint_pos: jointtarget, speed: speeddata, zone: zonedata):
@@ -405,15 +444,15 @@ class MotionProgram:
 
         ver = _read_num(f)
         tooldata_str = _tooldata_io_to_rapid(f)
-        timestamp_ascii_len = int(_read_num(f))
-        timestamp_ascii = f.read(timestamp_ascii_len)
-        timestamp_str = timestamp_ascii.decode('ascii')
+        wobjdata_str = _wobjdata_io_to_rapid(f)
+        timestamp_str = _read_str_to_rapid(f)
 
 
         print(f"MODULE {module_name}", file=o)
         print(f"    ! abb_motion_program_exec format version {ver}", file=o)
         print(f"    ! abb_motion_program_exec timestamp {timestamp_str}", file=o)
         print(f"    PERS tooldata motion_program_tool := {tooldata_str};", file=o)
+        print(f"    PERS wobjdata motion_program_wobj := {wobjdata_str};", file=o)
         print(f"    PROC main()", file=o)
         
         while True:
