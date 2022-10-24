@@ -335,17 +335,17 @@ def _cirpathmode_io_to_rapid(f: io.IOBase):
     op = _read_num(f)
     assert op == 0x6
     t = _read_num(f)
-    if op == 1:
+    if t == 1:
         return r"CirPathMode\PathFrame;"
-    if op == 2:
+    if t == 2:
         return r"CirPathMode\ObjectFrame;"
-    if op == 3:
+    if t == 3:
         return r"CirPathMode\CirPointOri;"
-    if op == 4:
+    if t == 4:
         return r"CirPathMode\Wrist45;"
-    if op == 5:
+    if t == 5:
         return r"CirPathMode\Wrist46;"
-    if op== 6:
+    if t == 6:
         return r"CirPathMode\Wrist56;"
     assert False, "Invalid CirPathMode switch"
 
