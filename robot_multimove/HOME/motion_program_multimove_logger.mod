@@ -25,7 +25,7 @@ MODULE motion_program_logger
         IRMQMessage rmq_timestamp, rmqint_open;
         
         CONNECT logger_err_interrupt WITH err_handler;
-        !IError COMMON_ERR, TYPE_ERR, logger_err_interrupt;
+        IError COMMON_ERR, TYPE_ERR, logger_err_interrupt;
        
         ClkReset time_stamp_clock;
         ClkStart time_stamp_clock;
