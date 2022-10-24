@@ -30,10 +30,10 @@ RobotStudio is now ready to create a solution.
 
 ## 2. Create Solution and Install Robot
 
-Click on the "File" tab, and then "Solution with Station and Virtual Controller". Select the 
+Click on the "File" tab, and then "New". Check "Include a Robot and Virtual Controller". Select the 
 RobotWare version installed in Step 1, in this case "6.14.00.01". For this example, the 
 "IRB 1200 5kg 0.9m" robot is used. Any 6 or 7 axis single-arm robot can be used instead. Change
-the "Solution Name" if desired. Click "Create" when ready.
+the project "Name" if desired. Uncheck "Customize Options".  Click "Create" when ready.
 
 ![](figures/robotstudio_new_solution.png)
 
@@ -78,8 +78,9 @@ files should now be visible under "HOME" in the tree view in RobotStudio.
 Right click on "Configuration" in the controller tree, and click on "Load Parameters". Browse to 
 `<repo_root>/robot/config_params` and select `SYS.cfg`. Click OK to confirm loading parameters,
 and OK to acknowledge restart is required. Repeat for `EIO.cfg` in the same directory. Make sure
-"Load parameters and replace duplicates" is selected in the file browser window for both. Click
-"Restart" to restart the controller.
+"Load parameters and replace duplicates" is selected in the file browser window for both.  Click
+"Controller" -> "Restart (drop down)" -> "Reset RAPID (P-Start)" to restart the controller with 
+the new software. Select "OK" to confirm RAPID reset.
 
 ![](figures/robotstudio_restart.png)
 

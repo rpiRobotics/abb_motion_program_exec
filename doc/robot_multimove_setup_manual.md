@@ -47,7 +47,7 @@ New we will add two robots to the solution. First, add the IRB 1200. Click "Home
 If a window "IRB 1200" appears, select "Standard", "0.9 m", "Standard". The bottom right should show 
 "IRB1200_5_90_STD_03". Click "OK".
 
-![](figures/robotstudio_irb1200_select.png)
+![](figures/multimove/robotstudio_irb1200_select2.png)
 
 Right click on "IRB1200_5_90_STD_03" under "Layout", click "Position" -> "Set Position". In the
 "Set Position" box in the upper left, type in xyz = (1000,0,500), rpy = (0,0,180). Click "Apply"
