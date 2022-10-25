@@ -20,7 +20,6 @@ import struct
 import numpy as np
 import io
 import requests
-from bs4 import BeautifulSoup
 import time
 import datetime
 from enum import IntEnum
@@ -516,6 +515,10 @@ class MotionProgramExecClient:
         
     def _do_get(self, relative_url):
         url="/".join([self.base_url, relative_url])
+        if "?" in url:
+            url += "&json=1"
+        else:
+            url += "?json=1"
         res=self._session.get(url, auth=self.auth)
         try:            
             return self._process_response(res)
@@ -525,6 +528,10 @@ class MotionProgramExecClient:
 
     def _do_post(self, relative_url, payload=None):
         url="/".join([self.base_url, relative_url])
+        if "?" in url:
+            url += "&json=1"
+        else:
+            url += "?json=1"
         res=self._session.post(url, data=payload, auth=self.auth)
         try:
             return self._process_response(res)
@@ -532,26 +539,33 @@ class MotionProgramExecClient:
             res.close()
 
     def _process_response(self, response):        
-        soup=BeautifulSoup(response.text, features="html.parser")
-
-        if (response.status_code == 500):
+        
+        if (response.status_code == 503):
             raise Exception("Robot returning 500 Internal Server Error")
+
+        if (response.status_code == 503):
+            raise Exception("Robot returning 503 too many active connections")
+
+        response_json = None
+        if response.headers["Content-Type"] == 'application/json' and len(response.content) > 0:
+            try:            
+                response_json = response.json()
+            except:
+                if not response.text.startswith("<?xml"):
+                    raise
     
         if (response.status_code == 200 or response.status_code == 201  \
             or response.status_code==202 or response.status_code==204):
             
-            return soup.body
+            return response_json
         
-        if soup.body is None:
-            raise Exception("Robot returning HTTP error " + str(response.status_code))
+        if response_json is None:
+            raise Exception("Robot returning HTTP error " + str(response.status_code))        
         
-        error_code=int(soup.find('span', attrs={'class':'code'}).text)
-        error_message1=soup.find('span', attrs={'class': 'msg'})
-        if (error_message1 is not None):
-            error_message=error_message1.text
-        else:
-            error_message="Received error from ABB robot: " + str(error_code)
-
+        status = response_json["_embedded"]["status"]
+        error_code=int(status["code"])
+        error_message=status.get('msg',"Received error from ABB robot: " + str(error_code))
+        
         raise ABBException(error_message, error_code)
 
     def start(self, cycle='asis',tasks=['T_ROB1']):
@@ -589,26 +603,29 @@ class MotionProgramExecClient:
         res=self._do_post("rw/rapid/execution?action=resetpp")
 
     def get_ramdisk_path(self):
-        soup = self._do_get("ctrl/$RAMDISK")
-        return soup.find('span', attrs={'class': 'value' }).text
+        res_json = self._do_get("ctrl/$RAMDISK")
+        return res_json["_embedded"]["_state"][0]["_value"]
 
     def get_execution_state(self):
-        soup = self._do_get("rw/rapid/execution")
-        ctrlexecstate=soup.find('span', attrs={'class': 'ctrlexecstate'}).text
-        cycle=soup.find('span', attrs={'class': 'cycle'}).text
+        res_json = self._do_get("rw/rapid/execution")
+        state = res_json["_embedded"]["_state"][0]
+        ctrlexecstate=state["ctrlexecstate"]
+        cycle=state["cycle"]
         return RAPIDExecutionState(ctrlexecstate, cycle)
     
     def get_controller_state(self):
-        soup = self._do_get("rw/panel/ctrlstate")
-        return soup.find('span', attrs={'class': 'ctrlstate'}).text
+        res_json = self._do_get("rw/panel/ctrlstate")
+        state = res_json["_embedded"]["_state"][0]
+        return state['ctrlstate']
     
     def get_operation_mode(self):
-        soup = self._do_get("rw/panel/opmode")        
-        return soup.find('span', attrs={'class': 'opmode'}).text
+        res_json = self._do_get("rw/panel/opmode")        
+        state = res_json["_embedded"]["_state"][0]
+        return state["opmode"]
     
     def get_digital_io(self, signal, network='Local', unit='DRV_1'):
-        soup = self._do_get("rw/iosystem/signals/" + network + "/" + unit + "/" + signal)        
-        state = soup.find('span', attrs={'class': 'lvalue'}).text
+        res_json = self._do_get("rw/iosystem/signals/" + network + "/" + unit + "/" + signal)
+        state = res_json["_embedded"]["_state"][0]["lvalue"]
         return int(state)
     
     def set_digital_io(self, signal, value, network='Local', unit='DRV_1'):
@@ -617,8 +634,8 @@ class MotionProgramExecClient:
         res=self._do_post("rw/iosystem/signals/" + network + "/" + unit + "/" + signal + "?action=set", payload)
     
     def get_rapid_variable(self, var):
-        soup = self._do_get("rw/rapid/symbol/data/RAPID/T_ROB1/" + var)        
-        state = soup.find('span', attrs={'class': 'value'}).text
+        res_json = self._do_get("rw/rapid/symbol/data/RAPID/T_ROB1/" + var)
+        state = res_json["_embedded"]["_state"][0]["value"]
         return state
     
     def set_rapid_variable(self, var, value):
@@ -646,50 +663,44 @@ class MotionProgramExecClient:
 
     def read_event_log(self, elog=0):
         o=[]
-        soup = self._do_get("rw/elog/" + str(elog) + "/?lang=en")
-        state=soup.find('div', attrs={'class': 'state'})
-        ul=state.find('ul')
+        res_json = self._do_get("rw/elog/" + str(elog) + "/?lang=en")
+        state = res_json["_embedded"]["_state"]
         
-        for li in ul.findAll('li'):
-            seqnum = int(li.attrs["title"].split("/")[-1])
-            def find_val(v):
-                return li.find('span', attrs={'class': v}).text
-            msg_type=int(find_val('msgtype'))
-            code=int(find_val('code'))
-            tstamp=datetime.datetime.strptime(find_val('tstamp'), '%Y-%m-%d T  %H:%M:%S')
-            title=find_val('title')
-            desc=find_val('desc')
-            conseqs=find_val('conseqs')
-            causes=find_val('causes')
-            actions=find_val('actions')
+        for s in state:
+            seqnum = int(s["_title"].split("/")[-1])
+            msg_type=int(s["msgtype"])
+            code=int(s["code"])
+            tstamp=datetime.datetime.strptime(s["tstamp"], '%Y-%m-%d T  %H:%M:%S')
+            title=s["title"]
+            desc=s["desc"]
+            conseqs=s["conseqs"]
+            causes=s["causes"]
+            actions=s["actions"]
             args=[]
-            nargs=int(find_val('argc'))
-            for i in range(nargs):
-                arg=find_val('arg%d' % (i+1))
-                args.append(arg)
+            nargs=int(s["argc"])
+            if "argv" in s:
+                for arg in s["argv"]:
+                    args.append(arg["value"])
             
             o.append(RAPIDEventLogEntry(seqnum,msg_type,code,tstamp,args,title,desc,conseqs,causes,actions))
         return o
 
     def get_tasks(self):
         o = {}
-        soup = self._do_get("rw/rapid/tasks")
-        state=soup.find('div', attrs={'class': 'state'})
-        ul=state.find('ul')
-        
-        for li in ul.findAll('li'):
-            def find_val(v):
-                return li.find('span', attrs={'class': v}).text
-            name=find_val('name')
-            type_=find_val('type')
-            taskstate=find_val('taskstate')
-            excstate=find_val('excstate')
+        res_json = self._do_get("rw/rapid/tasks")
+        state = res_json["_embedded"]["_state"]
+                
+        for s in state:
+            name=s["name"]
+            type_=s["type"]
+            taskstate=s["taskstate"]
+            excstate=s["excstate"]            
             try:
-                active=find_val('active') == "On"
+                active=s["active"] == "On"
             except:
                 active=False
             try:
-              motiontask=find_val("motiontask").lower() == "true"
+              motiontask=s["motiontask"].lower() == "true"
             except:
                 motiontask=False
 
