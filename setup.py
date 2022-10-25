@@ -12,7 +12,6 @@ setup(
     url='https://github.com/johnwason/abb_motion_program_exec',
     py_modules=['abb_motion_program_exec_client'],
     install_requires=[
-        'bs4',
         'requests',
         'numpy'
     ],
