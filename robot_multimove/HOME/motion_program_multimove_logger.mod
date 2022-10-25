@@ -1,4 +1,6 @@
 MODULE motion_program_logger
+    
+    CONST num motion_program_file_version:=10006;
         
     CONST num log_sample_period:=0.004;
     PERS motion_program_state_type motion_program_state{2};
@@ -61,24 +63,30 @@ MODULE motion_program_logger
         ENDWHILE
     ENDPROC
     
+    PROC pack_num(num val, VAR rawbytes b)
+        PackRawBytes val, b, (RawBytesLen(b)+1)\Float4;
+    ENDPROC
+    
+    PROC pack_str(string val, VAR rawbytes b)
+        PackRawBytes val, b, (RawBytesLen(b)+1)\ASCII;
+    ENDPROC
+    
     PROC motion_program_log_open()
         VAR string log_filename;
-        log_filename := "log-" + rmq_timestamp + ".csv";
-        Open "RAMDISK:" \File:=log_filename, log_io_device, \Write;
-        Write log_io_device,"timestamp, "\NoNewLine;
-        Write log_io_device,"cmd_num, "\NoNewLine;
-        Write log_io_device,"J1, "\NoNewLine;
-        Write log_io_device,"J2, "\NoNewLine;
-        Write log_io_device,"J3, "\NoNewLine;
-        Write log_io_device,"J4, "\NoNewLine;
-        Write log_io_device,"J5, "\NoNewLine;
-        Write log_io_device,"J6, "\NoNewLine;
-        Write log_io_device,"J1_2, "\NoNewLine;
-        Write log_io_device,"J2_2, "\NoNewLine;
-        Write log_io_device,"J3_2, "\NoNewLine;
-        Write log_io_device,"J4_2, "\NoNewLine;
-        Write log_io_device,"J5_2, "\NoNewLine;
-        Write log_io_device,"J6_2";
+        VAR string header_str:="timestamp,cmdnum,J1,J2,J3,J4,J5,J6,J1_2,J2_2,J3_2,J4_2,J5_2,J6_2";
+        VAR num header_str_len;
+        VAR num rmq_timestamp_len;
+        VAR rawbytes header_bytes;
+        header_str_len:=StrLen(header_str);
+        rmq_timestamp_len:=StrLen(rmq_timestamp);
+        log_filename := "log-" + rmq_timestamp + ".bin";
+        pack_num motion_program_file_version, header_bytes;
+        pack_num rmq_timestamp_len, header_bytes;
+        pack_str rmq_timestamp, header_bytes;
+        pack_num header_str_len, header_bytes;
+        pack_str header_str, header_bytes;
+        Open "RAMDISK:" \File:=log_filename, log_io_device, \Write\Bin;
+        WriteRawBytes log_io_device, header_bytes;
         ErrWrite \I, "Motion Program Log File Opened", "Motion Program Log File Opened with filename: " + log_filename;
         log_file_open := TRUE;
     ENDPROC
@@ -96,23 +104,25 @@ MODULE motion_program_logger
     PROC motion_program_log_data()
         VAR jointtarget jt1;
         VAR jointtarget jt2;
+        VAR rawbytes data_bytes;
         jt1:=motion_program_state{1}.joint_position;
         jt2:=motion_program_state{2}.joint_position;        
         
-        Write log_io_device, "" \Num:=ClkRead(time_stamp_clock \HighRes)\NoNewLine;
-        Write log_io_device,", "\Num:=motion_program_state{1}.current_cmd_num\NoNewLine;
-        Write log_io_device,", "\Num:=jt1.robax.rax_1\NoNewLine;
-        Write log_io_device,", "\Num:=jt1.robax.rax_2\NoNewLine;
-        Write log_io_device,", "\Num:=jt1.robax.rax_3\NoNewLine;
-        Write log_io_device,", "\Num:=jt1.robax.rax_4\NoNewLine;
-        Write log_io_device,", "\Num:=jt1.robax.rax_5\NoNewLine;
-        Write log_io_device,", "\Num:=jt1.robax.rax_6\NoNewLine;
-        Write log_io_device,", "\Num:=jt2.robax.rax_1\NoNewLine;
-        Write log_io_device,", "\Num:=jt2.robax.rax_2\NoNewLine;
-        Write log_io_device,", "\Num:=jt2.robax.rax_3\NoNewLine;
-        Write log_io_device,", "\Num:=jt2.robax.rax_4\NoNewLine;
-        Write log_io_device,", "\Num:=jt2.robax.rax_5\NoNewLine;
-        Write log_io_device,", "\Num:=jt2.robax.rax_6;
+        pack_num ClkRead(time_stamp_clock \HighRes), data_bytes;
+        pack_num motion_program_state{1}.current_cmd_num, data_bytes;
+        pack_num jt1.robax.rax_1, data_bytes;
+        pack_num jt1.robax.rax_2, data_bytes;
+        pack_num jt1.robax.rax_3, data_bytes;
+        pack_num jt1.robax.rax_4, data_bytes;
+        pack_num jt1.robax.rax_5, data_bytes;
+        pack_num jt1.robax.rax_6, data_bytes;
+        pack_num jt2.robax.rax_1, data_bytes;
+        pack_num jt2.robax.rax_2, data_bytes;
+        pack_num jt2.robax.rax_3, data_bytes;
+        pack_num jt2.robax.rax_4, data_bytes;
+        pack_num jt2.robax.rax_5, data_bytes;
+        pack_num jt2.robax.rax_6, data_bytes;
+        WriteRawBytes log_io_device, data_bytes;
     ENDPROC
     
     PROC logger2_main()
