@@ -151,17 +151,22 @@ robot, or using `localhost` if using the simulator.
 Once the client is constructed, it can be used to execute the program:
 
 ```python
-log_csv_bin = mp_client.execute_motion_program(mp)
+log_results = mp_client.execute_motion_program(mp)
 ```
 
-`log_csv_bin` will contain a CSV file in binary format. This can either be saved to a binary
-file directly, or converted to a string and used in Python. To convert to a string, use:
+`log_results` is a tuple containing the results of the motion:
 
 ```python
-log_csv = log_csv_bin.decode('ascii')
+class MotionProgramResultLog(NamedTuple):
+    timestamp: str
+    column_headers: List[str]
+    data: np.array
 ```
 
-The CSV data has the following columns:
+`timestamp` is a string timestamp for the data. `column_headers` is a list of strings containing the labels of the
+columns of data. `data` contains a float32 numpy 2D array of the data, with each row being a sample.
+
+For a single robot, the data has the following columns:
 
 * `timestamp` - The time of the row. This is time from the startup of the logger task in seconds.
   Subtract the initial time from all samples to get a 0 start time for the program.
@@ -174,7 +179,7 @@ The CSV data has the following columns:
 * `J5` - Joint 5 position in degrees
 * `J6` - Joint 6 position in degrees
 
-The first line of the CSV data contains column headers.
+The field `column_headers` contains a list of the column headers.
 
 ## Python module installation
 
@@ -229,7 +234,6 @@ mp.WaitTime(2.5)
 
 mp.MoveJ(r3,abb.v5000,abb.fine)
 
-mp.CirPathMode(abb.CirPathModeSwitch.CirPointOri)
 mp.MoveC(r4,r5,abb.v200,abb.z10)
 mp.MoveC(r4,r3,abb.v50,abb.fine)
 
@@ -241,25 +245,23 @@ print(mp.get_program_rapid())
 client = abb.MotionProgramExecClient(base_url="http://127.0.0.1:80")
 log_results = client.execute_motion_program(mp)
 
-# Write log csv to file
-with open("log.csv","wb") as f:
-    f.write(log_results)
-
-# Or convert to string and use in memory
-log_results_str = log_results.decode('ascii')
-print(log_results_str)
+# log_results.data is a numpy array
+import matplotlib.pyplot as plt
+import matplotlib.ticker as plt_ticker
+fig, ax1 = plt.subplots()
+lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:])
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("Joint angle (deg)")
+ax2 = ax1.twinx()
+lns2 = ax2.plot(log_results.data[:,0], log_results.data[:,1], '-k')
+ax2.set_ylabel("Command number")
+ax2.set_yticks(range(-1,int(max(log_results.data[:,1]))+1))
+ax1.legend(lns1 + lns2, log_results.column_headers[2:] + ["cmdnum"])
+ax1.set_title("Joint motion")
+plt.show()
 
 ```
 
-Example log CSV data (truncated):
-
-```
-timestamp, cmd_num, J1, J2, J3, J4, J5, J6
-85.34, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344
-85.344, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344
-85.348, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344
-85.352, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344
-```
 
 ## Multi-Move Robot Example
 

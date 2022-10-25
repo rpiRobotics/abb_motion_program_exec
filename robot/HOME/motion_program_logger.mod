@@ -1,5 +1,7 @@
 MODULE motion_program_logger
             
+    CONST num motion_program_file_version:=10006;
+    
     PERS motion_program_state_type motion_program_state;
         
     VAR bool log_file_open:=FALSE;
@@ -55,19 +57,32 @@ MODULE motion_program_logger
         ENDWHILE
     ENDPROC
     
+    PROC pack_num(num val, VAR rawbytes b)
+        PackRawBytes val, b, (RawBytesLen(b)+1)\Float4;
+    ENDPROC
+    
+    PROC pack_str(string val, VAR rawbytes b)
+        PackRawBytes val, b, (RawBytesLen(b)+1)\ASCII;
+    ENDPROC
+    
     PROC motion_program_log_open()
         VAR string log_filename;
-        log_filename := "log-" + rmq_timestamp + ".csv";
-        Open "RAMDISK:" \File:=log_filename, log_io_device, \Write;
-        Write log_io_device,"timestamp, "\NoNewLine;
-        Write log_io_device,"cmd_num, "\NoNewLine;
-        Write log_io_device,"J1, "\NoNewLine;
-        Write log_io_device,"J2, "\NoNewLine;
-        Write log_io_device,"J3, "\NoNewLine;
-        Write log_io_device,"J4, "\NoNewLine;
-        Write log_io_device,"J5, "\NoNewLine;
-        Write log_io_device,"J6";
-        ErrWrite \I, "Motion Program Log File Opened", "Motion Program Log File Opened with filename: " + log_filename;
+        VAR string header_str:="timestamp,cmdnum,J1,J2,J3,J4,J5,J6";
+        VAR num header_str_len;
+        VAR num rmq_timestamp_len;
+        VAR rawbytes header_bytes;
+        header_str_len:=StrLen(header_str);
+        rmq_timestamp_len:=StrLen(rmq_timestamp);
+        log_filename := "log-" + rmq_timestamp + ".bin";
+        
+        pack_num motion_program_file_version, header_bytes;
+        pack_num rmq_timestamp_len, header_bytes;
+        pack_str rmq_timestamp, header_bytes;
+        pack_num header_str_len, header_bytes;
+        pack_str header_str, header_bytes;
+        Open "RAMDISK:" \File:=log_filename, log_io_device, \Write\Bin;
+        WriteRawBytes log_io_device, header_bytes;
+        ErrWrite \I, "Motion Program Log File Opened", "Motion Program Log File Opened with filename: " + log_filename;        
         log_file_open := TRUE;
     ENDPROC
     
@@ -87,20 +102,22 @@ MODULE motion_program_logger
         VAR num J4;    
         VAR num J5;    
         VAR num J6;
+        VAR rawbytes data_bytes;
         GetJointData 1\Position:=J1;
         GetJointData 2\Position:=J2;
         GetJointData 3\Position:=J3;
         GetJointData 4\Position:=J4;
         GetJointData 5\Position:=J5;
         GetJointData 6\Position:=J6;
-        Write log_io_device, "" \Num:=ClkRead(time_stamp_clock \HighRes)\NoNewLine;
-        Write log_io_device,", "\Num:=motion_program_state.current_cmd_num\NoNewLine;
-        Write log_io_device,", "\Num:=J1\NoNewLine;
-        Write log_io_device,", "\Num:=J2\NoNewLine;
-        Write log_io_device,", "\Num:=J3\NoNewLine;
-        Write log_io_device,", "\Num:=J4\NoNewLine;
-        Write log_io_device,", "\Num:=J5\NoNewLine;
-        Write log_io_device,", "\Num:=J6;
+        pack_num ClkRead(time_stamp_clock \HighRes), data_bytes;
+        pack_num motion_program_state.current_cmd_num, data_bytes;
+        pack_num J1, data_bytes;
+        pack_num J2, data_bytes;
+        pack_num J3, data_bytes;
+        pack_num J4, data_bytes;
+        pack_num J5, data_bytes;
+        pack_num J6, data_bytes;
+        WriteRawBytes log_io_device, data_bytes;
     ENDPROC
     
     TRAP rmq_message_string

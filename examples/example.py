@@ -50,10 +50,17 @@ print(mp.get_program_rapid())
 client = abb.MotionProgramExecClient(base_url="http://127.0.0.1:80")
 log_results = client.execute_motion_program(mp)
 
-# Write log csv to file
-#with open("log.csv","wb") as f:
-#    f.write(log_results)
-
-# Or convert to string and use in memory
-log_results_str = log_results.decode('ascii')
-print(log_results_str)
+# log_results.data is a numpy array
+import matplotlib.pyplot as plt
+import matplotlib.ticker as plt_ticker
+fig, ax1 = plt.subplots()
+lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:])
+ax1.set_xlabel("Time (s)")
+ax1.set_ylabel("Joint angle (deg)")
+ax2 = ax1.twinx()
+lns2 = ax2.plot(log_results.data[:,0], log_results.data[:,1], '-k')
+ax2.set_ylabel("Command number")
+ax2.set_yticks(range(-1,int(max(log_results.data[:,1]))+1))
+ax1.legend(lns1 + lns2, log_results.column_headers[2:] + ["cmdnum"])
+ax1.set_title("Joint motion")
+plt.show()
