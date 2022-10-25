@@ -1,6 +1,6 @@
 MODULE motion_program_exec
 
-    CONST num motion_program_file_version:=10005;
+    CONST num motion_program_file_version:=10006;
 
     PERS motion_program_state_type motion_program_state{2};
 
@@ -25,12 +25,16 @@ MODULE motion_program_exec
     PERS tasks task_list{2}:=[["T_ROB1"],["T_ROB2"]];
 
     VAR syncident sync1;
-
+    
+    VAR errnum ERR_INVALID_MP_VERSION := -1;
+    VAR errnum ERR_INVALID_MP_FILE := -1;
 
     PROC main()
         VAR zonedata z:=fine;
         VAR string taskname;
         VAR string filename;
+        BookErrNo ERR_INVALID_MP_VERSION;
+        BookErrNo ERR_INVALID_MP_FILE;
         SyncMoveOn sync1,task_list;
         taskname:=GetTaskName();
         IF taskname="T_ROB1" THEN
@@ -76,19 +80,23 @@ MODULE motion_program_exec
         ENDIF
 
         IF ver<>motion_program_file_version THEN
-            RAISE ERR_WRONGVAL;
+            ErrWrite"Invalid Motion Program","Invalid motion program file version";
+            RAISE ERR_INVALID_MP_VERSION;
         ENDIF
 
         IF NOT try_motion_program_read_td(mtool) THEN
-            RAISE ERR_FILESIZE;
+            ErrWrite"Invalid Motion Program Tool","Invalid motion program tool";
+            RAISE ERR_INVALID_MP_FILE;
         ENDIF
         
         IF NOT try_motion_program_read_wd(mwobj) THEN
-            RAISE ERR_FILESIZE;
+            ErrWrite"Invalid Motion Program Wobj","Invalid motion program wobj";
+            RAISE ERR_INVALID_MP_FILE;
         ENDIF
 
         IF NOT try_motion_program_read_string(timestamp) THEN
-            RAISE ERR_FILESIZE;
+            ErrWrite"Invalid Motion Program Timestamp","Invalid motion program timestamp";
+            RAISE ERR_INVALID_MP_FILE;
         ENDIF
 
         motion_program_state{task_ind}.program_timestamp:=timestamp;

@@ -25,6 +25,7 @@ import time
 import datetime
 from enum import IntEnum
 
+MOTION_PROGRAM_FILE_VERSION = 10006
 class speeddata(NamedTuple):
     v_tcp: float
     v_ori: float
@@ -349,6 +350,27 @@ def _cirpathmode_io_to_rapid(f: io.IOBase):
         return r"CirPathMode\Wrist56;"
     assert False, "Invalid CirPathMode switch"
 
+def _read_str(f: io.IOBase):
+    l = int(_read_num(f))
+    s_ascii = f.read(l)
+    return s_ascii.decode('ascii')
+
+class MotionProgramResultLog(NamedTuple):
+    timestamp: str
+    column_headers: List[str]
+    data: np.array
+
+def _unpack_motion_program_result_log(b: bytes):
+    f = io.BytesIO(b)
+    file_ver = _read_num(f)
+    assert file_ver == MOTION_PROGRAM_FILE_VERSION
+    timestamp_str = _read_str(f)
+    header_str = _read_str(f)
+    headers = header_str.split(",")
+    data_flat = np.frombuffer(b[f.tell():], dtype=np.float32)
+    data = data_flat.reshape((-1,len(headers)))
+    return MotionProgramResultLog(timestamp_str, headers, data)
+
 tool0 = tooldata(True,pose([0,0,0],[1,0,0,0]),loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0))
 wobj0 = wobjdata(False, True, "", pose([0,0,0],[1,0,0,0]), pose([0,0,0],[1,0,0,0]))        
 
@@ -363,7 +385,7 @@ class MotionProgram:
 
         self._f = io.BytesIO()
         # Version number
-        self._f.write(_num_to_bin(10005))
+        self._f.write(_num_to_bin(MOTION_PROGRAM_FILE_VERSION))
         if tool is None:
             tool = tool0
         if wobj is None:
@@ -778,7 +800,7 @@ class MotionProgramExecClient:
                 if l.args[0].lower() == "motion program log file opened":
                     assert not found_log_open, "Found more than one log opened message"
                     found_log_open = True
-                    log_filename_m = re.search(r"(log\-[\d\-]+\.csv)",l.args[1])
+                    log_filename_m = re.search(r"(log\-[\d\-]+\.bin)",l.args[1])
                     assert log_filename_m, "Invalid log opened message"
                     log_filename = log_filename_m.group(1)
 
@@ -790,7 +812,7 @@ class MotionProgramExecClient:
             self.delete_file(f"{ramdisk}/{log_filename}")
         except:
             pass
-        return log_contents
+        return _unpack_motion_program_result_log(log_contents)
 
 
         
@@ -870,13 +892,20 @@ def main():
     client = MotionProgramExecClient()
     log_results = client.execute_motion_program(mp)
 
-    # Write log csv to file
-    # with open("log.csv","wb") as f:
-    #    f.write(log_results)
-
-    # Or convert to string and use in memory
-    log_results_str = log_results.decode('ascii')
-    print(log_results_str)
+    # log_results.data is a numpy array
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as plt_ticker
+    fig, ax1 = plt.subplots()
+    lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:])
+    ax1.set_xlabel("Time (s)")
+    ax1.set_ylabel("Joint angle (deg)")
+    ax2 = ax1.twinx()
+    lns2 = ax2.plot(log_results.data[:,0], log_results.data[:,1], '-k')
+    ax2.set_ylabel("Command number")
+    ax2.set_yticks(range(-1,int(max(log_results.data[:,1]))+1))
+    ax1.legend(lns1 + lns2, log_results.column_headers[2:] + ["cmdnum"])
+    ax1.set_title("Joint motion")
+    plt.show()
 
 if __name__ == "__main__":
     main()
