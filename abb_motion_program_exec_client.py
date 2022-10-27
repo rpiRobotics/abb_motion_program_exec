@@ -285,16 +285,17 @@ def _wobjdata_io_to_rapid(f: io.IOBase):
     oframe_str = _pose_io_to_rapid(f)
     return f"[{robhold_str},{ufprog_str},{ufmec_str},{uframe_str},{oframe_str}]"
 
-def _moveabsj_io_to_rapid(f: io.IOBase):
+def _moveabsj_io_to_rapid(f: io.IOBase, sync_move=False):
     cmd_num = _read_num(f)
     op = _read_num(f)
     assert op == 0x1
     to_joint_pos_str = _jointtarget_io_to_rapid(f)
     speed_str = _speeddata_io_to_rapid(f)
     zone_str = _zonedata_io_to_rapid(f)
-    return f"MoveAbsJ {to_joint_pos_str}, {speed_str}, {zone_str}, motion_program_tool;"
+    sync_id = "" if not sync_move else f"\\ID:={cmd_num},"
+    return f"MoveAbsJ {to_joint_pos_str}, {sync_id}{speed_str}, {zone_str}, motion_program_tool\Wobj:=motion_program_wobj;"
 
-def _movej_io_to_rapid(f: io.IOBase):
+def _movej_io_to_rapid(f: io.IOBase, sync_move=False):
     cmd_num = _read_num(f)
     op = _read_num(f)
     assert op == 0x2
@@ -302,18 +303,21 @@ def _movej_io_to_rapid(f: io.IOBase):
     speed_str = _speeddata_io_to_rapid(f)
     zone_str = _zonedata_io_to_rapid(f)
     
-    return f"MoveJ {to_point_str}, {speed_str}, {zone_str}, motion_program_tool;"
+    sync_id = "" if not sync_move else f"\\ID:={cmd_num},"
+    return f"MoveJ {to_point_str}, {sync_id}{speed_str}, {zone_str}, motion_program_tool\Wobj:=motion_program_wobj;"
 
-def _movel_io_to_rapid(f: io.IOBase):
+def _movel_io_to_rapid(f: io.IOBase, sync_move=False):
     cmd_num = _read_num(f)
     op = _read_num(f)
     assert op == 0x3
     to_point_str = _robtarget_io_to_rapid(f)
     speed_str = _speeddata_io_to_rapid(f)
     zone_str = _zonedata_io_to_rapid(f)
-    return f"MoveL {to_point_str}, {speed_str}, {zone_str}, motion_program_tool;"
 
-def _movec_io_to_rapid(f: io.IOBase):
+    sync_id = "" if not sync_move else f"\\ID:={cmd_num},"
+    return f"MoveL {to_point_str}, {sync_id}{speed_str}, {zone_str}, motion_program_tool\Wobj:=motion_program_wobj;"
+
+def _movec_io_to_rapid(f: io.IOBase, sync_move=False):
     cmd_num = _read_num(f)
     op = _read_num(f)
     assert op == 0x4
@@ -321,7 +325,8 @@ def _movec_io_to_rapid(f: io.IOBase):
     to_point_str = _robtarget_io_to_rapid(f)
     speed_str = _speeddata_io_to_rapid(f)
     zone_str = _zonedata_io_to_rapid(f)
-    return f"MoveC {cir_point_str}, {to_point_str}, {speed_str}, {zone_str}, motion_program_tool;"
+    sync_id = "" if not sync_move else f"\\ID:={cmd_num},"
+    return f"MoveC {cir_point_str}, {sync_id}{to_point_str}, {speed_str}, {zone_str}, motion_program_tool\Wobj:=motion_program_wobj;"
 
 def _waittime_io_to_rapid(f: io.IOBase):
     cmd_num = _read_num(f)
@@ -458,7 +463,7 @@ class MotionProgram:
     def get_program_bytes(self):
         return self._f.getvalue()
 
-    def get_program_rapid(self, module_name="motion_program_exec_gen"):
+    def get_program_rapid(self, module_name="motion_program_exec_gen", sync_move=False):
         program_bytes = self.get_program_bytes()
         f = io.BufferedReader(io.BytesIO(program_bytes))
         o = io.StringIO()
@@ -474,7 +479,13 @@ class MotionProgram:
         print(f"    ! abb_motion_program_exec timestamp {timestamp_str}", file=o)
         print(f"    PERS tooldata motion_program_tool := {tooldata_str};", file=o)
         print(f"    PERS wobjdata motion_program_wobj := {wobjdata_str};", file=o)
+        if sync_move:
+            print("    PERS tasks task_list{2} := [ [\"T_ROB1\"], [\"T_ROB2\"] ];", file=o)
+            print("    VAR syncident sync1;", file=o)
+
         print(f"    PROC main()", file=o)
+        if sync_move:
+            print("        SyncMoveOn sync1, task_list;", file=o)
         
         while True:
             nums_bytes = f.peek(8)
@@ -484,13 +495,13 @@ class MotionProgram:
             cmd_num = _num_struct_fmt.unpack_from(nums_bytes, 0)[0]
             print(f"        ! cmd_num = {cmd_num}",file=o)
             if op == 0x1:
-                print(f"        {_moveabsj_io_to_rapid(f)}",file=o)
+                print(f"        {_moveabsj_io_to_rapid(f, sync_move)}",file=o)
             elif op == 0x2:
-                print(f"        {_movej_io_to_rapid(f)}",file=o)
+                print(f"        {_movej_io_to_rapid(f, sync_move)}",file=o)
             elif op == 0x3:
-                print(f"        {_movel_io_to_rapid(f)}",file=o)
+                print(f"        {_movel_io_to_rapid(f, sync_move)}",file=o)
             elif op == 0x4:
-                print(f"        {_movec_io_to_rapid(f)}",file=o)
+                print(f"        {_movec_io_to_rapid(f, sync_move)}",file=o)
             elif op == 0x5:
                 print(f"        {_waittime_io_to_rapid(f)}",file=o)
             elif op == 0x6:
