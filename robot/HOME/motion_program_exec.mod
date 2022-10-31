@@ -19,14 +19,23 @@ MODULE motion_program_exec
     VAR num motion_current_cmd_ind;
     VAR num motion_max_cmd_ind;
 
-    VAR errnum ERR_INVALID_MP_VERSION := -1;
-    VAR errnum ERR_INVALID_MP_FILE := -1;
-    
+    VAR errnum ERR_INVALID_MP_VERSION:=-1;
+    VAR errnum ERR_INVALID_MP_FILE:=-1;
+    VAR errnum ERR_MISSED_PREEMPT:=-1;
+
     PROC main()
         VAR zonedata z:=fine;
         BookErrNo ERR_INVALID_MP_VERSION;
         BookErrNo ERR_INVALID_MP_FILE;
+        BookErrNo ERR_MISSED_PREEMPT;
+        SetAO motion_program_preempt,0;
+        SetAO motion_program_preempt_current,0;
+        SetAO motion_program_preempt_cmd_num,-1;
+        SetAO motion_program_current_cmd_num,-1;
         motion_program_state.current_cmd_num:=-1;
+        motion_current_cmd_ind:=0;
+        motion_max_cmd_ind:=0;
+        SetAO motion_program_queued_cmd_num,0;
         CONNECT motion_trigg_intno WITH motion_trigg_trap;
         TriggInt motion_trigg_data,0.001,\Start,motion_trigg_intno;
         RMQFindSlot logger_rmq,"RMQ_logger";
@@ -51,36 +60,35 @@ MODULE motion_program_exec
         VAR tooldata mtool;
         VAR wobjdata mwobj;
         VAR string timestamp;
-        
+
         motion_program_state.motion_program_filename:=filename;
+        motion_program_clear_bytes;
         Open "RAMDISK:"\File:=filename,motion_program_io_device,\Read\Bin;
         IF NOT try_motion_program_read_num(ver) THEN
             RAISE ERR_FILESIZE;
         ENDIF
 
         IF ver<>motion_program_file_version THEN
-            ErrWrite"Invalid Motion Program","Invalid motion program file version";
+            ErrWrite "Invalid Motion Program","Invalid motion program file version";
             RAISE ERR_INVALID_MP_VERSION;
         ENDIF
 
         IF NOT try_motion_program_read_td(mtool) THEN
-            ErrWrite"Invalid Motion Program Tool","Invalid motion program tool";
+            ErrWrite "Invalid Motion Program Tool","Invalid motion program tool";
             RAISE ERR_INVALID_MP_FILE;
         ENDIF
-        
+
         IF NOT try_motion_program_read_wd(mwobj) THEN
-            ErrWrite"Invalid Motion Program Wobj","Invalid motion program wobj";
+            ErrWrite "Invalid Motion Program Wobj","Invalid motion program wobj";
             RAISE ERR_INVALID_MP_FILE;
         ENDIF
 
         IF NOT try_motion_program_read_string(timestamp) THEN
-            ErrWrite"Invalid Motion Program Timestamp","Invalid motion program timestamp";
+            ErrWrite "Invalid Motion Program Timestamp","Invalid motion program timestamp";
             RAISE ERR_INVALID_MP_FILE;
         ENDIF
 
         motion_program_state.program_timestamp:=timestamp;
-        motion_current_cmd_ind:=0;
-        motion_max_cmd_ind:=0;
 
         ErrWrite\I,"Motion Program Opened","Motion Program Opened with timestamp: "+timestamp;
 
@@ -92,7 +100,7 @@ MODULE motion_program_exec
         motion_program_state.motion_program_filename:="";
         Close motion_program_io_device;
     ERROR
-        SkipWarn;
+        !SkipWarn;
         TRYNEXT;
     ENDPROC
 
@@ -102,8 +110,10 @@ MODULE motion_program_exec
         VAR num cmd_num;
         VAR num cmd_op;
         motion_program_state.current_cmd_num:=-1;
+        SetAO motion_program_current_cmd_num,-1;
         motion_program_state.running:=TRUE;
         WHILE keepgoing DO
+            motion_program_do_preempt;
             keepgoing:=try_motion_program_run_next_cmd(cmd_num,cmd_op);
         ENDWHILE
         WaitRob\ZeroSpeed;
@@ -123,6 +133,7 @@ MODULE motion_program_exec
 
         !motion_program_state.current_cmd_num:=cmd_num;
         motion_max_cmd_ind:=motion_max_cmd_ind+1;
+        SetAO motion_program_queued_cmd_num,motion_max_cmd_ind;
         local_cmd_ind:=((motion_max_cmd_ind-1) MOD 128)+1;
 
         TEST cmd_op
@@ -225,6 +236,7 @@ MODULE motion_program_exec
         ENDIF
         WaitRob\ZeroSpeed;
         motion_program_state.current_cmd_num:=cmd_num;
+        SetAO motion_program_current_cmd_num,cmd_num;
         WaitTime t;
         RETURN TRUE;
     ENDFUNC
@@ -235,6 +247,7 @@ MODULE motion_program_exec
             RETURN FALSE;
         ENDIF
         motion_program_state.current_cmd_num:=cmd_num;
+        SetAO motion_program_current_cmd_num,cmd_num;
         TEST switch
         CASE 1:
             CirPathMode\PathFrame;
@@ -355,7 +368,7 @@ MODULE motion_program_exec
         td.robhold:=robhold_num<>0;
         RETURN TRUE;
     ENDFUNC
-    
+
     FUNC bool try_motion_program_read_wd(INOUT wobjdata wd)
         VAR num robhold_num;
         VAR num ufprog_num;
@@ -403,6 +416,10 @@ MODULE motion_program_exec
         ENDIF
     ENDFUNC
 
+    PROC motion_program_clear_bytes()
+        ClearRawBytes motion_program_bytes;
+    ENDPROC
+
     FUNC bool try_motion_program_read_num(INOUT num val)
         IF NOT try_motion_program_fill_bytes() THEN
             val:=0;
@@ -442,6 +459,22 @@ MODULE motion_program_exec
         RMQSendMessage logger_rmq,msg;
     ENDPROC
 
+    PROC motion_program_do_preempt()
+        VAR string filename;
+        IF motion_program_preempt>motion_program_preempt_current THEN
+            IF motion_max_cmd_ind=motion_program_preempt_cmd_num THEN
+                filename:=StrFormat("motion_program_p{1}.bin"\Arg1:=NumToStr(motion_program_preempt,0));
+                ErrWrite\I,"Preempting Motion Program","Preempting motion program with file "+filename;
+                SetAO motion_program_preempt_current,motion_program_preempt;
+                close_motion_program_file;
+                open_motion_program_file(filename);
+            ELSEIF motion_max_cmd_ind>motion_program_preempt_cmd_num THEN
+                ErrWrite "Missed Preempt","Preempt command number missed";
+                RAISE ERR_MISSED_PREEMPT;
+            ENDIF
+        ENDIF
+    ENDPROC
+
     TRAP motion_trigg_trap
         VAR num cmd_ind;
         VAR num local_cmd_ind;
@@ -459,6 +492,7 @@ MODULE motion_program_exec
 
         IF cmd_num<>-1 THEN
             motion_program_state.current_cmd_num:=cmd_num;
+            SetAO motion_program_current_cmd_num,cmd_num;
         ENDIF
     ENDTRAP
 
