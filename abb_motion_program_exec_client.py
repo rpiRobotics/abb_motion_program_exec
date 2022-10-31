@@ -370,6 +370,21 @@ def _unpack_motion_program_result_log(b: bytes):
     data = data_flat.reshape((-1,len(headers)))
     return MotionProgramResultLog(timestamp_str, headers, data)
 
+def _get_motion_program_file(path: str, motion_program: "MotionProgram", task="T_ROB1", preempt_number=None):
+    b = motion_program.get_program_bytes()
+    assert len(b) > 0, "Motion program must not be empty"
+    ramdisk = path
+    filename = f"{ramdisk}/motion_program"
+    if task != "T_ROB1":
+        task_m = re.match(r"^.*[A-Za-z_](\d+)$",task)
+        if task_m:
+            filename_ind = int(task_m.group(1))
+            filename = f"{filename}{filename_ind}"
+    if preempt_number is not None:
+        filename = f"{filename}_p{preempt_number}"
+    filename = f"{filename}.bin"
+    return filename, b
+
 tool0 = tooldata(True,pose([0,0,0],[1,0,0,0]),loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0))
 wobj0 = wobjdata(False, True, "", pose([0,0,0],[1,0,0,0]), pose([0,0,0],[1,0,0,0]))        
 
@@ -632,6 +647,15 @@ class MotionProgramExecClient:
         lvalue = '1' if bool(value) else '0'
         payload={'lvalue': lvalue}
         res=self._do_post("rw/iosystem/signals/" + network + "/" + unit + "/" + signal + "?action=set", payload)
+
+    def get_analog_io(self, signal, network='Local', unit='DRV_1'):
+        res_json = self._do_get("rw/iosystem/signals/" + network + "/" + unit + "/" + signal)
+        state = res_json["_embedded"]["_state"][0]["lvalue"]
+        return int(state)
+    
+    def set_analog_io(self, signal, value, network='Local', unit='DRV_1'):
+        payload={"mode": "value",'lvalue': value}
+        res=self._do_post("rw/iosystem/signals/" + network + "/" + unit + "/" + signal + "?action=set", payload)
     
     def get_rapid_variable(self, var):
         res_json = self._do_get("rw/rapid/symbol/data/RAPID/T_ROB1/" + var)
@@ -708,22 +732,35 @@ class MotionProgramExecClient:
         
         return o
 
-    def execute_motion_program(self, motion_program: MotionProgram, task="T_ROB1"):
-        b = motion_program.get_program_bytes()
-        assert len(b) > 0, "Motion program must not be empty"
-        ramdisk = self.get_ramdisk_path()
-        filename = f"{ramdisk}/motion_program.bin"
-        if task != "T_ROB1":
-            task_m = re.match(r"^.*[A-Za-z_](\d+)$",task)
-            if task_m:
-                filename_ind = int(task_m.group(1))
-                filename = f"{ramdisk}/motion_program{filename_ind}.bin"
+    def execute_motion_program(self, motion_program: MotionProgram, task="T_ROB1", wait : bool = True):
+        filename, b = _get_motion_program_file(self.get_ramdisk_path(), motion_program, task)
         def _upload():            
             self.upload_file(filename, b)
 
-        return self._execute_motion_program([task],_upload)
+        prev_seqnum = self._download_and_start_motion_program([task], _upload)
+        if not wait:
+            return prev_seqnum
+        self.wait_motion_program_complete()
+        return self.read_motion_program_result_log(prev_seqnum)
 
-    def execute_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks=None):
+    def preempt_motion_program(self, motion_program: MotionProgram, task="T_ROB1", preempt_number: int = 1, 
+        preempt_cmdnum : int = -1):
+        filename, b = _get_motion_program_file(self.get_ramdisk_path(), motion_program, task, preempt_number)
+        self.upload_file(filename, b)
+        self.set_analog_io("motion_program_preempt_cmd_num", preempt_cmdnum)
+        self.set_analog_io("motion_program_preempt", preempt_number)
+
+    def get_current_cmdnum(self):
+        return self.get_analog_io("motion_program_current_cmd_num")
+
+    def get_queued_cmdnum(self):
+        return self.get_analog_io("motion_program_queued_cmd_num")
+
+    def get_current_preempt_number(self):
+        return self.get_analog_io("motion_program_preempt_current") 
+        
+
+    def execute_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks=None, wait : bool = True):
 
         if tasks is None:
             tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
@@ -734,28 +771,28 @@ class MotionProgramExecClient:
         assert len(tasks) > 1, "Multimove program must have at least two tasks"
 
         b = []
-        for mp in motion_programs:
-            b.append(mp.get_program_bytes())
-        assert len(b) > 0, "Motion program must not be empty"
         filenames = []
         ramdisk = self.get_ramdisk_path()
-        for task in tasks:
-            filename = f"{ramdisk}/motion_program.bin"
-            if task != "T_ROB1":
-                task_m = re.match(r"^.*[A-Za-z_](\d+)$",task)
-                if task_m:
-                    filename_ind = int(task_m.group(1))
-                    filename = f"{ramdisk}/motion_program{filename_ind}.bin"
-            filenames.append(filename)
 
+        for mp, task in zip(motion_programs, tasks):
+            filename1, b1 = _get_motion_program_file(ramdisk, mp, task)
+            filenames.append(filename1)
+            b.append(b1)
+
+        assert len(b) > 0, "Motion program must not be empty"
         assert len(filenames) == len(b)
         def _upload():
             for i in range(len(filenames)):
                 self.upload_file(filenames[i], b[i])
 
-        return self._execute_motion_program(tasks,_upload)
+        prev_seqnum = self._download_and_start_motion_program(tasks, _upload)
+        if not wait:
+            return prev_seqnum
+        self.wait_motion_program_complete()
+        return self.read_motion_program_result_log(prev_seqnum)
 
-    def _execute_motion_program(self, tasks, upload_fn: Callable[[],None]):
+    
+    def _download_and_start_motion_program(self, tasks, upload_fn: Callable[[],None]):
         
         exec_state = self.get_execution_state()
         assert exec_state.ctrlexecstate == "stopped"
@@ -768,13 +805,24 @@ class MotionProgramExecClient:
 
         self.resetpp()
         upload_fn()
-        
+
         self.start(cycle='once',tasks=tasks)
+
+        return prev_seqnum
+
+    def is_motion_program_running(self):
+        exec_state = self.get_execution_state()
+        return exec_state.ctrlexecstate == "running"
+
+    def wait_motion_program_complete(self):
+        
         while True:
             exec_state = self.get_execution_state()
             if exec_state.ctrlexecstate != "running":
                 break
             time.sleep(0.05)
+
+    def read_motion_program_result_log(self, prev_seqnum):
 
         log_after_raw = self.read_event_log()
         log_after = []
@@ -824,7 +872,6 @@ class MotionProgramExecClient:
         except:
             pass
         return _unpack_motion_program_result_log(log_contents)
-
 
         
 class ABBException(Exception):
