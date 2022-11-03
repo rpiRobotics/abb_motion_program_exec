@@ -24,7 +24,7 @@ import time
 import datetime
 from enum import IntEnum
 
-MOTION_PROGRAM_FILE_VERSION = 10006
+MOTION_PROGRAM_FILE_VERSION = 10007
 class speeddata(NamedTuple):
     v_tcp: float
     v_ori: float
@@ -188,7 +188,12 @@ def _intnum_to_bin(f):
     return _intnum_struct_fmt.pack(f)
 
 def _str_to_bin(s: str):
-    return _num_to_bin(len(s)) + s.encode('ascii')
+    assert len(s) <= 32
+    s_bin = s.encode('ascii')
+    pad_len = 32 - len(s_bin)
+    if pad_len > 0:
+        s_bin += b" " * pad_len
+    return _num_to_bin(len(s)) + s_bin
 
 _loaddata_struct_fmt = struct.Struct("<11f")
 def _loaddata_to_bin(l: loaddata):
@@ -224,8 +229,8 @@ def _read_struct_io(f: io.IOBase, s: struct.Struct):
 
 def _read_str_to_rapid(f: io.IOBase):
     l = int(_read_num(f))
-    s_ascii = f.read(l)
-    return "\"" + s_ascii.decode('ascii') + "\""
+    s_ascii = f.read(32)
+    return "\"" + s_ascii[0:l].decode('ascii') + "\""
 
 def _nums_to_rapid_array(nums: List[float]):
     return "[" + ", ".join([str(n) for n in nums]) + "]"

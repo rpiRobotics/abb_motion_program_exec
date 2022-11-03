@@ -1,6 +1,6 @@
 MODULE motion_program_logger
             
-    CONST num motion_program_file_version:=10006;
+    CONST num motion_program_file_version:=10007;
     
     PERS motion_program_state_type motion_program_state;
         

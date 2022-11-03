@@ -1,6 +1,6 @@
 MODULE motion_program_logger
     
-    CONST num motion_program_file_version:=10006;
+    CONST num motion_program_file_version:=10007;
         
     CONST num log_sample_period:=0.004;
     PERS motion_program_state_type motion_program_state{2};

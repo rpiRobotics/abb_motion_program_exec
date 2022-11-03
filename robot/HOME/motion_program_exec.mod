@@ -1,6 +1,6 @@
 MODULE motion_program_exec
 
-    CONST num motion_program_file_version:=10006;
+    CONST num motion_program_file_version:=10007;
 
     PERS motion_program_state_type motion_program_state;
 
@@ -432,20 +432,47 @@ MODULE motion_program_exec
 
     FUNC bool try_motion_program_read_string(INOUT string val)
         VAR num str_len;
+        VAR string str1;
+        VAR num str1_len;
+        VAR string str2;
+        VAR num str2_len;
         IF NOT (
             try_motion_program_fill_bytes()
             AND try_motion_program_read_num(str_len)
+            AND try_motion_program_fill_bytes()
         )
         THEN
             val:="";
             RETURN FALSE;
         ENDIF
-        IF RawBytesLen(motion_program_bytes)<motion_program_bytes_offset+str_len THEN
-            RAISE ERR_WRONGVAL;
+        IF RawBytesLen(motion_program_bytes)>=(motion_program_bytes_offset+31) THEN
+            UnpackRawBytes motion_program_bytes,motion_program_bytes_offset,val,\ASCII:=str_len;
+            motion_program_bytes_offset:=motion_program_bytes_offset+32;
+            RETURN TRUE;
+        ELSE
+            str1_len:= (RawBytesLen(motion_program_bytes)+1) - motion_program_bytes_offset;
+            IF str1_len >= str_len THEN
+                UnpackRawBytes motion_program_bytes,motion_program_bytes_offset,val,\ASCII:=str_len;
+                motion_program_bytes_offset:=motion_program_bytes_offset + str1_len;
+                IF NOT try_motion_program_fill_bytes() THEN
+                    RETURN FALSE;
+                ENDIF
+                motion_program_bytes_offset:=motion_program_bytes_offset + (32 - str1_len);
+                RETURN TRUE;
+            ELSE
+                UnpackRawBytes motion_program_bytes,motion_program_bytes_offset,str1,\ASCII:=str1_len;
+                motion_program_bytes_offset:=motion_program_bytes_offset + str1_len;
+                IF NOT try_motion_program_fill_bytes() THEN
+                    RETURN FALSE;
+                ENDIF
+                str2_len:=str_len - str1_len;
+                UnpackRawBytes motion_program_bytes,motion_program_bytes_offset,str2,\ASCII:=str2_len;
+                motion_program_bytes_offset:=motion_program_bytes_offset + (32 - str1_len);
+                val:= str1 + str2;
+                RETURN TRUE;
+            ENDIF
         ENDIF
-        UnpackRawBytes motion_program_bytes,motion_program_bytes_offset,val,\ASCII:=str_len;
-        motion_program_bytes_offset:=motion_program_bytes_offset+str_len;
-        RETURN TRUE;
+        
     ENDFUNC
 
     PROC motion_program_req_log_start()
