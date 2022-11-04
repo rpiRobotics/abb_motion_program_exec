@@ -36,6 +36,11 @@ mp2.MoveL(t1_2,abb.v1000,abb.fine)
 mp2.MoveL(t2_2,abb.v5000,abb.fine)
 mp2.MoveL(t3_2,abb.v500,abb.fine)
 
+# Print out rapid programs for debugging (optional)
+print(mp.get_program_rapid(module_name="TROB1_MODULE",sync_move=True))
+print()
+print(mp2.get_program_rapid(module_name="TROB2_MODULE", sync_move=True))
+
 # Execute the motion program on the robot
 # Change base_url to the robot IP address
 client = abb.MotionProgramExecClient(base_url="http://127.0.0.1:80")
