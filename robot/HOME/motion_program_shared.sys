@@ -1,0 +1,19 @@
+MODULE motion_program_shared
+
+    RECORD motion_program_state_type
+        bool running;
+        num current_cmd_num;
+        num queued_cmd_num;
+        num preempt_current;
+        string motion_program_filename;
+        num clk_time;
+        jointtarget joint_position;
+        string program_timestamp;
+    ENDRECORD
+    
+    CONST num motion_program_file_version:=10008;
+    
+    PERS motion_program_state_type motion_program_state{2};
+
+ENDMODULE
+
