@@ -19,10 +19,10 @@ from typing import Callable, NamedTuple, Any, List
 import struct
 import numpy as np
 import io
-import requests
 import time
 import datetime
 from enum import IntEnum
+from abb_robot_client.rws import RWS
 
 MOTION_PROGRAM_FILE_VERSION = 10008
 
@@ -576,219 +576,16 @@ class MotionProgram:
 
 
 class MotionProgramExecClient:
-    def __init__(self, base_url='http://127.0.0.1:80', username='Default User', password='robotics'):
-        self.base_url=base_url
-        self.auth=requests.auth.HTTPDigestAuth(username, password)
-        self._session=requests.Session()
-        
-    def _do_get(self, relative_url):
-        url="/".join([self.base_url, relative_url])
-        if "?" in url:
-            url += "&json=1"
+    def __init__(self, base_url='http://127.0.0.1:80', username='Default User', password='robotics', abb_client = None):
+        if abb_client is None:
+            self.abb_client = RWS(base_url, username, password)
         else:
-            url += "?json=1"
-        res=self._session.get(url, auth=self.auth)
-        try:            
-            return self._process_response(res)
-        finally:
-            res.close()
-    
-
-    def _do_post(self, relative_url, payload=None):
-        url="/".join([self.base_url, relative_url])
-        if "?" in url:
-            url += "&json=1"
-        else:
-            url += "?json=1"
-        res=self._session.post(url, data=payload, auth=self.auth)
-        try:
-            return self._process_response(res)
-        finally:
-            res.close()
-
-    def _process_response(self, response):        
-        
-        if (response.status_code == 503):
-            raise Exception("Robot returning 500 Internal Server Error")
-
-        if (response.status_code == 503):
-            raise Exception("Robot returning 503 too many active connections")
-
-        response_json = None
-        if response.headers["Content-Type"] == 'application/json' and len(response.content) > 0:
-            try:            
-                response_json = response.json()
-            except:
-                if not response.text.startswith("<?xml"):
-                    raise
-    
-        if (response.status_code == 200 or response.status_code == 201  \
-            or response.status_code==202 or response.status_code==204):
-            
-            return response_json
-        
-        if response_json is None:
-            raise Exception("Robot returning HTTP error " + str(response.status_code))        
-        
-        status = response_json["_embedded"]["status"]
-        error_code=int(status["code"])
-        error_message=status.get('msg',"Received error from ABB robot: " + str(error_code))
-        
-        raise ABBException(error_message, error_code)
-
-    def start(self, cycle='asis',tasks=['T_ROB1']):
-
-        rob_tasks = self.get_tasks()
-        for t in tasks:
-            assert t in rob_tasks, f"Cannot start unknown task {t}"
-
-        for rob_task in rob_tasks.values():
-            if not rob_task.motiontask:
-                continue
-            if rob_task.name in tasks:
-                if not rob_task.active:
-                    self.activate_task(rob_task.name)
-            else:
-                if rob_task.active:
-                    self.deactivate_task(rob_task.name)
-
-        payload={"regain": "continue", "execmode": "continue" , "cycle": cycle, "condition": "none", "stopatbp": "disabled", "alltaskbytsp": "true"}
-        res=self._do_post("rw/rapid/execution?action=start", payload)
-
-    def activate_task(self, task):
-        payload={}
-        self._do_post(f"rw/rapid/tasks/{task}?action=activate",payload)
-
-    def deactivate_task(self, task):
-        payload={}
-        self._do_post(f"rw/rapid/tasks/{task}?action=deactivate",payload)
-
-    def stop(self):
-        payload={"stopmode": "stop"}
-        res=self._do_post("rw/rapid/execution?action=stop", payload)
-
-    def resetpp(self):
-        res=self._do_post("rw/rapid/execution?action=resetpp")
-
-    def get_ramdisk_path(self):
-        res_json = self._do_get("ctrl/$RAMDISK")
-        return res_json["_embedded"]["_state"][0]["_value"]
-
-    def get_execution_state(self):
-        res_json = self._do_get("rw/rapid/execution")
-        state = res_json["_embedded"]["_state"][0]
-        ctrlexecstate=state["ctrlexecstate"]
-        cycle=state["cycle"]
-        return RAPIDExecutionState(ctrlexecstate, cycle)
-    
-    def get_controller_state(self):
-        res_json = self._do_get("rw/panel/ctrlstate")
-        state = res_json["_embedded"]["_state"][0]
-        return state['ctrlstate']
-    
-    def get_operation_mode(self):
-        res_json = self._do_get("rw/panel/opmode")        
-        state = res_json["_embedded"]["_state"][0]
-        return state["opmode"]
-    
-    def get_digital_io(self, signal, network='Local', unit='DRV_1'):
-        res_json = self._do_get("rw/iosystem/signals/" + network + "/" + unit + "/" + signal)
-        state = res_json["_embedded"]["_state"][0]["lvalue"]
-        return int(state)
-    
-    def set_digital_io(self, signal, value, network='Local', unit='DRV_1'):
-        lvalue = '1' if bool(value) else '0'
-        payload={'lvalue': lvalue}
-        res=self._do_post("rw/iosystem/signals/" + network + "/" + unit + "/" + signal + "?action=set", payload)
-
-    def get_analog_io(self, signal, network='Local', unit='DRV_1'):
-        res_json = self._do_get("rw/iosystem/signals/" + network + "/" + unit + "/" + signal)
-        state = res_json["_embedded"]["_state"][0]["lvalue"]
-        return int(state)
-    
-    def set_analog_io(self, signal, value, network='Local', unit='DRV_1'):
-        payload={"mode": "value",'lvalue': value}
-        res=self._do_post("rw/iosystem/signals/" + network + "/" + unit + "/" + signal + "?action=set", payload)
-    
-    def get_rapid_variable(self, var):
-        res_json = self._do_get("rw/rapid/symbol/data/RAPID/T_ROB1/" + var)
-        state = res_json["_embedded"]["_state"][0]["value"]
-        return state
-    
-    def set_rapid_variable(self, var, value):
-        payload={'value': value}
-        res=self._do_post("rw/rapid/symbol/data/RAPID/T_ROB1/" + var + "?action=set", payload)
-        
-    def read_file(self, filename):
-        url="/".join([self.base_url, "fileservice", filename])
-        res=self._session.get(url, auth=self.auth)
-        try:            
-            return res.content
-        finally:
-            res.close()
-
-    def upload_file(self, filename, contents):
-        url="/".join([self.base_url, "fileservice" , filename])
-        res=self._session.put(url, contents, auth=self.auth)
-        assert res.ok, res.reason
-        res.close()
-
-    def delete_file(self, filename):
-        url="/".join([self.base_url, "fileservice" , filename])
-        res=self._session.delete(url, auth=self.auth)
-        res.close()
-
-    def read_event_log(self, elog=0):
-        o=[]
-        res_json = self._do_get("rw/elog/" + str(elog) + "/?lang=en")
-        state = res_json["_embedded"]["_state"]
-        
-        for s in state:
-            seqnum = int(s["_title"].split("/")[-1])
-            msg_type=int(s["msgtype"])
-            code=int(s["code"])
-            tstamp=datetime.datetime.strptime(s["tstamp"], '%Y-%m-%d T  %H:%M:%S')
-            title=s["title"]
-            desc=s["desc"]
-            conseqs=s["conseqs"]
-            causes=s["causes"]
-            actions=s["actions"]
-            args=[]
-            nargs=int(s["argc"])
-            if "argv" in s:
-                for arg in s["argv"]:
-                    args.append(arg["value"])
-            
-            o.append(RAPIDEventLogEntry(seqnum,msg_type,code,tstamp,args,title,desc,conseqs,causes,actions))
-        return o
-
-    def get_tasks(self):
-        o = {}
-        res_json = self._do_get("rw/rapid/tasks")
-        state = res_json["_embedded"]["_state"]
-                
-        for s in state:
-            name=s["name"]
-            type_=s["type"]
-            taskstate=s["taskstate"]
-            excstate=s["excstate"]            
-            try:
-                active=s["active"] == "On"
-            except:
-                active=False
-            try:
-              motiontask=s["motiontask"].lower() == "true"
-            except:
-                motiontask=False
-
-            o[name]=RAPIDTaskState(name,type_,taskstate,excstate,active,motiontask)
-        
-        return o
+            self.abb_client = abb_client
 
     def execute_motion_program(self, motion_program: MotionProgram, task="T_ROB1", wait : bool = True):
-        filename, b = _get_motion_program_file(self.get_ramdisk_path(), motion_program, task)
+        filename, b = _get_motion_program_file(self.abb_client.get_ramdisk_path(), motion_program, task)
         def _upload():            
-            self.upload_file(filename, b)
+            self.abb_client.upload_file(filename, b)
 
         prev_seqnum = self._download_and_start_motion_program([task], _upload)
         if not wait:
@@ -798,19 +595,19 @@ class MotionProgramExecClient:
 
     def preempt_motion_program(self, motion_program: MotionProgram, task="T_ROB1", preempt_number: int = 1, 
         preempt_cmdnum : int = -1):
-        filename, b = _get_motion_program_file(self.get_ramdisk_path(), motion_program, task, preempt_number)
-        self.upload_file(filename, b)
-        self.set_analog_io("motion_program_preempt_cmd_num", preempt_cmdnum)
-        self.set_analog_io("motion_program_preempt", preempt_number)
+        filename, b = _get_motion_program_file(self.abb_client.get_ramdisk_path(), motion_program, task, preempt_number)
+        self.abb_client.upload_file(filename, b)
+        self.abb_client.set_analog_io("motion_program_preempt_cmd_num", preempt_cmdnum)
+        self.abb_client.set_analog_io("motion_program_preempt", preempt_number)
 
     def get_current_cmdnum(self):
-        return self.get_analog_io("motion_program_current_cmd_num")
+        return self.abb_client.get_analog_io("motion_program_current_cmd_num")
 
     def get_queued_cmdnum(self):
-        return self.get_analog_io("motion_program_queued_cmd_num")
+        return self.abb_client.get_analog_io("motion_program_queued_cmd_num")
 
     def get_current_preempt_number(self):
-        return self.get_analog_io("motion_program_preempt_current") 
+        return self.abb_client.get_analog_io("motion_program_preempt_current") 
         
 
     def execute_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks=None, wait : bool = True):
@@ -825,7 +622,7 @@ class MotionProgramExecClient:
 
         b = []
         filenames = []
-        ramdisk = self.get_ramdisk_path()
+        ramdisk = self.abb_client.get_ramdisk_path()
 
         for mp, task in zip(motion_programs, tasks):
             filename1, b1 = _get_motion_program_file(ramdisk, mp, task)
@@ -836,7 +633,7 @@ class MotionProgramExecClient:
         assert len(filenames) == len(b)
         def _upload():
             for i in range(len(filenames)):
-                self.upload_file(filenames[i], b[i])
+                self.abb_client.upload_file(filenames[i], b[i])
 
         prev_seqnum = self._download_and_start_motion_program(tasks, _upload)
         if not wait:
@@ -856,7 +653,7 @@ class MotionProgramExecClient:
 
         b = []
         filenames = []
-        ramdisk = self.get_ramdisk_path()
+        ramdisk = self.abb_client.get_ramdisk_path()
 
         for mp, task in zip(motion_programs, tasks):
             filename1, b1 = _get_motion_program_file(ramdisk, mp, task, preempt_number)
@@ -864,43 +661,43 @@ class MotionProgramExecClient:
             b.append(b1)
 
         for filename, b in zip(filenames, b):        
-            self.upload_file(filename, b)
-        self.set_analog_io("motion_program_preempt_cmd_num", preempt_cmdnum)
-        self.set_analog_io("motion_program_preempt", preempt_number)
+            self.abb_client.upload_file(filename, b)
+        self.abb_client.set_analog_io("motion_program_preempt_cmd_num", preempt_cmdnum)
+        self.abb_client.set_analog_io("motion_program_preempt", preempt_number)
     
     def _download_and_start_motion_program(self, tasks, upload_fn: Callable[[],None]):
         
-        exec_state = self.get_execution_state()
+        exec_state = self.abb_client.get_execution_state()
         assert exec_state.ctrlexecstate == "stopped"
         #assert exec_state.cycle == "once"
-        ctrl_state = self.get_controller_state()
+        ctrl_state = self.abb_client.get_controller_state()
         assert ctrl_state == "motoron"
 
-        log_before = self.read_event_log()
+        log_before = self.abb_client.read_event_log()
         prev_seqnum = log_before[0].seqnum
 
-        self.resetpp()
+        self.abb_client.resetpp()
         upload_fn()
 
-        self.start(cycle='once',tasks=tasks)
+        self.abb_client.start(cycle='once',tasks=tasks)
 
         return prev_seqnum
 
     def is_motion_program_running(self):
-        exec_state = self.get_execution_state()
+        exec_state = self.abb_client.get_execution_state()
         return exec_state.ctrlexecstate == "running"
 
     def wait_motion_program_complete(self):
         
         while True:
-            exec_state = self.get_execution_state()
+            exec_state = self.abb_client.get_execution_state()
             if exec_state.ctrlexecstate != "running":
                 break
             time.sleep(0.05)
 
     def read_motion_program_result_log(self, prev_seqnum):
 
-        log_after_raw = self.read_event_log()
+        log_after_raw = self.abb_client.read_event_log()
         log_after = []
         for l in log_after_raw:
             if l.seqnum > prev_seqnum:
@@ -941,43 +738,13 @@ class MotionProgramExecClient:
 
         assert found_log_open and found_log_close and len(log_filename) > 0, "Could not find log file messages in robot event log"
 
-        ramdisk = self.get_ramdisk_path()
-        log_contents = self.read_file(f"{ramdisk}/{log_filename}")
+        ramdisk = self.abb_client.get_ramdisk_path()
+        log_contents = self.abb_client.read_file(f"{ramdisk}/{log_filename}")
         try:
-            self.delete_file(f"{ramdisk}/{log_filename}")
+            self.abb_client.delete_file(f"{ramdisk}/{log_filename}")
         except:
             pass
         return _unpack_motion_program_result_log(log_contents)
-
-        
-class ABBException(Exception):
-    def __init__(self, message, code):
-        super(ABBException, self).__init__(message)
-        self.code=code
-
-class RAPIDExecutionState(NamedTuple):
-    ctrlexecstate: Any
-    cycle: Any
-
-class RAPIDEventLogEntry(NamedTuple):
-    seqnum: int
-    msgtype: int
-    code: int 
-    tstamp: datetime.datetime 
-    args: List[Any]
-    title: str
-    desc: str
-    conseqs: str
-    causes: str
-    actions: str
-
-class RAPIDTaskState(NamedTuple):
-    name: str
-    type_: str
-    taskstate: str
-    excstate: str
-    active: bool
-    motiontask: bool
 
 def main():
     j1 = jointtarget([10,20,30,40,50,60],[0]*6)
