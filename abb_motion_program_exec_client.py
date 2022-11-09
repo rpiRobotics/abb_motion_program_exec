@@ -24,7 +24,19 @@ import time
 import datetime
 from enum import IntEnum
 
-MOTION_PROGRAM_FILE_VERSION = 10007
+MOTION_PROGRAM_FILE_VERSION = 10008
+
+class MotionProgramCmd(IntEnum):
+    NOOP=0
+    MOVEABSJ=1
+    MOVEJ=2
+    MOVEL=3
+    MOVEC=4
+    WAIT=5
+    CIRPATHMODE=6
+    SYNCMOVEON=7
+    SYNCMOVEOFF=8
+
 class speeddata(NamedTuple):
     v_tcp: float
     v_ori: float
@@ -293,7 +305,7 @@ def _wobjdata_io_to_rapid(f: io.IOBase):
 def _moveabsj_io_to_rapid(f: io.IOBase, sync_move=False):
     cmd_num = _read_num(f)
     op = _read_num(f)
-    assert op == 0x1
+    assert op == MotionProgramCmd.MOVEABSJ
     to_joint_pos_str = _jointtarget_io_to_rapid(f)
     speed_str = _speeddata_io_to_rapid(f)
     zone_str = _zonedata_io_to_rapid(f)
@@ -303,7 +315,7 @@ def _moveabsj_io_to_rapid(f: io.IOBase, sync_move=False):
 def _movej_io_to_rapid(f: io.IOBase, sync_move=False):
     cmd_num = _read_num(f)
     op = _read_num(f)
-    assert op == 0x2
+    assert op == MotionProgramCmd.MOVEJ
     to_point_str = _robtarget_io_to_rapid(f)
     speed_str = _speeddata_io_to_rapid(f)
     zone_str = _zonedata_io_to_rapid(f)
@@ -314,7 +326,7 @@ def _movej_io_to_rapid(f: io.IOBase, sync_move=False):
 def _movel_io_to_rapid(f: io.IOBase, sync_move=False):
     cmd_num = _read_num(f)
     op = _read_num(f)
-    assert op == 0x3
+    assert op == MotionProgramCmd.MOVEL
     to_point_str = _robtarget_io_to_rapid(f)
     speed_str = _speeddata_io_to_rapid(f)
     zone_str = _zonedata_io_to_rapid(f)
@@ -325,7 +337,7 @@ def _movel_io_to_rapid(f: io.IOBase, sync_move=False):
 def _movec_io_to_rapid(f: io.IOBase, sync_move=False):
     cmd_num = _read_num(f)
     op = _read_num(f)
-    assert op == 0x4
+    assert op == MotionProgramCmd.MOVEC
     cir_point_str = _robtarget_io_to_rapid(f)
     to_point_str = _robtarget_io_to_rapid(f)
     speed_str = _speeddata_io_to_rapid(f)
@@ -336,14 +348,14 @@ def _movec_io_to_rapid(f: io.IOBase, sync_move=False):
 def _waittime_io_to_rapid(f: io.IOBase):
     cmd_num = _read_num(f)
     op = _read_num(f)
-    assert op == 0x5
+    assert op == MotionProgramCmd.WAIT
     t = _read_num(f)
     return f"WaitTime {t};"
 
 def _cirpathmode_io_to_rapid(f: io.IOBase):
     cmd_num = _read_num(f)
     op = _read_num(f)
-    assert op == 0x6
+    assert op == MotionProgramCmd.CIRPATHMODE
     t = _read_num(f)
     if t == 1:
         return r"CirPathMode\PathFrame;"
@@ -358,6 +370,18 @@ def _cirpathmode_io_to_rapid(f: io.IOBase):
     if t == 6:
         return r"CirPathMode\Wrist56;"
     assert False, "Invalid CirPathMode switch"
+
+def _sync_move_on_io_to_rapid(f: io.IOBase):
+    cmd_num = _read_num(f)
+    op = _read_num(f)
+    assert op == MotionProgramCmd.SYNCMOVEON
+    return "SyncMoveOn motion_program_sync1,task_list;"
+
+def _sync_move_off_io_to_rapid(f: io.IOBase):
+    cmd_num = _read_num(f)
+    op = _read_num(f)
+    assert op == MotionProgramCmd.SYNCMOVEOFF
+    return "SyncMoveOff motion_program_sync2;"
 
 def _read_str(f: io.IOBase):
     l = int(_read_num(f))
@@ -424,7 +448,7 @@ class MotionProgram:
         speed_b = _speeddata_to_bin(speed)
         zone_b = _zonedata_to_bin(zone)
         self._f.write(_num_to_bin(self._cmd_num))
-        self._f.write(_num_to_bin(0x1))
+        self._f.write(_num_to_bin(MotionProgramCmd.MOVEABSJ))
         self._f.write(to_joint_pos_b)
         self._f.write(speed_b)
         self._f.write(zone_b)
@@ -435,7 +459,7 @@ class MotionProgram:
         speed_b = _speeddata_to_bin(speed)
         zone_b = _zonedata_to_bin(zone)
         self._f.write(_num_to_bin(self._cmd_num))
-        self._f.write(_num_to_bin(0x2))
+        self._f.write(_num_to_bin(MotionProgramCmd.MOVEJ))
         self._f.write(to_point_b)
         self._f.write(speed_b)
         self._f.write(zone_b)
@@ -446,7 +470,7 @@ class MotionProgram:
         speed_b = _speeddata_to_bin(speed)
         zone_b = _zonedata_to_bin(zone)
         self._f.write(_num_to_bin(self._cmd_num))
-        self._f.write(_num_to_bin(0x3))
+        self._f.write(_num_to_bin(MotionProgramCmd.MOVEL))
         self._f.write(to_point_b)
         self._f.write(speed_b)
         self._f.write(zone_b)
@@ -458,7 +482,7 @@ class MotionProgram:
         speed_b = _speeddata_to_bin(speed)
         zone_b = _zonedata_to_bin(zone)
         self._f.write(_num_to_bin(self._cmd_num))
-        self._f.write(_num_to_bin(0x4))
+        self._f.write(_num_to_bin(MotionProgramCmd.MOVEC))
         self._f.write(cir_point_b)
         self._f.write(to_point_b)
         self._f.write(speed_b)
@@ -468,7 +492,7 @@ class MotionProgram:
     def WaitTime(self, t: float):
         assert t > 0, "Wait time must be >0"
         self._f.write(_num_to_bin(self._cmd_num))
-        self._f.write(_num_to_bin(0x5))
+        self._f.write(_num_to_bin(MotionProgramCmd.WAIT))
         self._f.write(_num_to_bin(t))
         self._cmd_num+=1
 
@@ -476,8 +500,18 @@ class MotionProgram:
         val = switch.value
         assert val >=1 and val <= 6, "Invalid CirPathMode switch"
         self._f.write(_num_to_bin(self._cmd_num))
-        self._f.write(_num_to_bin(0x6))
+        self._f.write(_num_to_bin(MotionProgramCmd.CIRPATHMODE))
         self._f.write(_num_to_bin(val))
+        self._cmd_num+=1
+
+    def SyncMoveOn(self):
+        self._f.write(_num_to_bin(self._cmd_num))
+        self._f.write(_num_to_bin(MotionProgramCmd.SYNCMOVEON))
+        self._cmd_num+=1
+
+    def SyncMoveOff(self):
+        self._f.write(_num_to_bin(self._cmd_num))
+        self._f.write(_num_to_bin(MotionProgramCmd.SYNCMOVEOFF))
         self._cmd_num+=1
 
     def get_program_bytes(self):
@@ -497,15 +531,14 @@ class MotionProgram:
         print(f"MODULE {module_name}", file=o)
         print(f"    ! abb_motion_program_exec format version {ver}", file=o)
         print(f"    ! abb_motion_program_exec timestamp {timestamp_str}", file=o)
-        print(f"    PERS tooldata motion_program_tool := {tooldata_str};", file=o)
-        print(f"    PERS wobjdata motion_program_wobj := {wobjdata_str};", file=o)
+        print(f"    TASK PERS tooldata motion_program_tool := {tooldata_str};", file=o)
+        print(f"    TASK PERS wobjdata motion_program_wobj := {wobjdata_str};", file=o)
         if sync_move:
             print("    PERS tasks task_list{2} := [ [\"T_ROB1\"], [\"T_ROB2\"] ];", file=o)
-            print("    VAR syncident sync1;", file=o)
+            print("    VAR syncident motion_program_sync1;", file=o)
+            print("    VAR syncident motion_program_sync2;", file=o)
 
         print(f"    PROC main()", file=o)
-        if sync_move:
-            print("        SyncMoveOn sync1, task_list;", file=o)
         
         while True:
             nums_bytes = f.peek(8)
@@ -514,18 +547,22 @@ class MotionProgram:
             op = _num_struct_fmt.unpack_from(nums_bytes, 4)[0]
             cmd_num = _num_struct_fmt.unpack_from(nums_bytes, 0)[0]
             print(f"        ! cmd_num = {cmd_num}",file=o)
-            if op == 0x1:
+            if op == MotionProgramCmd.MOVEABSJ:
                 print(f"        {_moveabsj_io_to_rapid(f, sync_move)}",file=o)
-            elif op == 0x2:
+            elif op == MotionProgramCmd.MOVEJ:
                 print(f"        {_movej_io_to_rapid(f, sync_move)}",file=o)
-            elif op == 0x3:
+            elif op == MotionProgramCmd.MOVEL:
                 print(f"        {_movel_io_to_rapid(f, sync_move)}",file=o)
-            elif op == 0x4:
+            elif op == MotionProgramCmd.MOVEC:
                 print(f"        {_movec_io_to_rapid(f, sync_move)}",file=o)
-            elif op == 0x5:
+            elif op == MotionProgramCmd.WAIT:
                 print(f"        {_waittime_io_to_rapid(f)}",file=o)
-            elif op == 0x6:
+            elif op == MotionProgramCmd.CIRPATHMODE:
                 print(f"        {_cirpathmode_io_to_rapid(f)}",file=o)
+            elif op == MotionProgramCmd.SYNCMOVEON:
+                print(f"        {_sync_move_on_io_to_rapid(f)}",file=o)
+            elif op == MotionProgramCmd.SYNCMOVEOFF:
+                print(f"        {_sync_move_off_io_to_rapid(f)}",file=o)
             else:
                 assert False, f"Invalid command opcode: {op}"
         

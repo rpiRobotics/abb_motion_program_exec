@@ -70,7 +70,7 @@ changed on previously.) Click "Open Folder".
 ![](figures/robotstudio_open_home.png)
 
 Copy `error_reporter.mod`, `motion_program_exec.mod`, `motion_program_logger.mod`, and
-`mp.sys` from `<repo_root>/robot/HOME` to the folder opened by clicking "Open Folder". The four
+`motion_program_shared.sys` from `<repo_root>/robot/HOME` to the folder opened by clicking "Open Folder". The four
 files should now be visible under "HOME" in the tree view in RobotStudio.
 
 ![](figures/robotstudio_rapid_copied.png)

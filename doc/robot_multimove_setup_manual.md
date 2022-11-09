@@ -114,15 +114,15 @@ changed on previously.) Click "Open Folder".
 
 ![](figures/multimove/robotstudio_multimove_open_home.png)
 
-Copy `error_reporter.mod`, `motion_program_multimove_exec.mod`,
-`motion_program_multimove_logger.mod`, and
-`mp.sys` from `<repo_root>/robot_multimove/HOME` to the folder opened by clicking "Open Folder".
+Copy `error_reporter.mod`, `motion_program_exec.mod`,
+`motion_program_logger.mod`, and
+`motion_program_shared.sys` from `<repo_root>/robot/HOME` to the folder opened by clicking "Open Folder".
 The four files should now be visible under "HOME" in the tree view in RobotStudio.
 
 ![](figures/multimove/robotstudio_multimove_rapid_copied.png)
 
 Right click on "Configuration" in the controller tree, and click on "Load Parameters". Browse to 
-`<repo_root>/robot_multimove/config_params` and select `SYS.cfg`. Click OK to confirm loading 
+`<repo_root>/robot/config_params_multimove` and select `SYS.cfg`. Click OK to confirm loading 
 parameters,
 and OK to acknowledge restart is required. Repeat for `EIO.cfg` in the same directory. Make sure
 "Load parameters and replace duplicates" is selected in the file browser window for both. Click
@@ -178,9 +178,9 @@ The robot is now ready to run programs! The `abb_motion_program_exec_client.py` 
 module to control the robot. For controlling two robots, two motion programs must be created,
 one for each robot. They must have exactly the same number of motion commands. The commands
 are passed with the `\ID` parameter corresponding to the command number. `SyncMoveOn` is activated
-to cause the robots to move in sync.
+to cause the robots to move in sync if required.
 
-See README.md for the example multi-move program.
+See README.md for the example multi-move program and the `examples` directory.
 
 By default, the virtual controller listens on `http://localhost:80` for requests. The Python
 module uses ABB WebServices for communication.
