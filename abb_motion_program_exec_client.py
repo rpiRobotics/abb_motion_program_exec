@@ -844,6 +844,29 @@ class MotionProgramExecClient:
         self.wait_motion_program_complete()
         return self.read_motion_program_result_log(prev_seqnum)
 
+    def preempt_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks=None, 
+        preempt_number: int = 1, preempt_cmdnum : int = -1):
+        if tasks is None:
+            tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
+
+        assert len(motion_programs) == len(tasks), \
+            "Motion program list and task list must have some length"
+
+        assert len(tasks) > 1, "Multimove program must have at least two tasks"
+
+        b = []
+        filenames = []
+        ramdisk = self.get_ramdisk_path()
+
+        for mp, task in zip(motion_programs, tasks):
+            filename1, b1 = _get_motion_program_file(ramdisk, mp, task, preempt_number)
+            filenames.append(filename1)
+            b.append(b1)
+
+        for filename, b in zip(filenames, b):        
+            self.upload_file(filename, b)
+        self.set_analog_io("motion_program_preempt_cmd_num", preempt_cmdnum)
+        self.set_analog_io("motion_program_preempt", preempt_number)
     
     def _download_and_start_motion_program(self, tasks, upload_fn: Callable[[],None]):
         

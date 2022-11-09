@@ -14,7 +14,7 @@ MODULE motion_program_exec
     LOCAL VAR rawbytes motion_program_bytes;
     LOCAL VAR num motion_program_bytes_offset;
 
-    TASK PERS tooldata motion_program_tool:=[TRUE,[[0,0,0.1],[1,0,0,0]],[0.001,[0,0,0.001],[1,0,0,0],0,0,0]];
+    TASK PERS tooldata motion_program_tool:=[TRUE,[[0,0,0.5],[1,0,0,0]],[0.1,[0,0,0.1],[1,0,0,0],0,0,0]];
     TASK PERS wobjdata motion_program_wobj:=[FALSE,TRUE,"",[[0,0,0],[1,0,0,0]],[[0,0,0],[1,0,0,0]]];
 
     LOCAL VAR rmqslot logger_rmq;
@@ -571,7 +571,11 @@ MODULE motion_program_exec
         VAR string filename;
         IF motion_program_preempt>motion_program_state{task_ind}.preempt_current THEN
             IF motion_max_cmd_ind=motion_program_preempt_cmd_num THEN
-                filename:=StrFormat("motion_program_p{1}.bin"\Arg1:=NumToStr(motion_program_preempt,0));
+                IF task_ind = 1 THEN
+                    filename:=StrFormat("motion_program_p{1}.bin"\Arg1:=NumToStr(motion_program_preempt,0));
+                ELSE
+                    filename:=StrFormat("motion_program2_p{1}.bin"\Arg1:=NumToStr(motion_program_preempt,0));
+                ENDIF
                 ErrWrite\I,"Preempting Motion Program","Preempting motion program with file "+filename;
                 IF task_ind=1 THEN
                     SetAO motion_program_preempt_current,motion_program_preempt;
