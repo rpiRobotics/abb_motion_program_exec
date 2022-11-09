@@ -13,7 +13,8 @@ setup(
     py_modules=['abb_motion_program_exec_client'],
     install_requires=[
         'requests',
-        'numpy'
+        'numpy',
+        'abb_robot_client'
     ],
     long_description=long_description,
     long_description_content_type='text/markdown'
