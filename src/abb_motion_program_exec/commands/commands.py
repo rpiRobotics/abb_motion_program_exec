@@ -20,8 +20,12 @@ class MoveAbsJCommand(CommandBase):
         f.write(speed_b)
         f.write(zone_b)
 
-    def write_rapid(self, f: io.TextIOBase):
-        pass
+    def to_rapid(self, sync_move = False, cmd_num = 0, **kwargs):
+        to_joint_pos_str = self.to_joint_pos.to_rapid()
+        speed_str = self.speed.to_rapid()
+        zone_str = self.zone.to_rapid()
+        sync_id = "" if not sync_move else f"\\ID:={cmd_num},"
+        return f"MoveAbsJ {to_joint_pos_str}, {sync_id}{speed_str}, {zone_str}, motion_program_tool\Wobj:=motion_program_wobj;"
 
     _append_method_doc = ""
 
@@ -41,6 +45,14 @@ class MoveJCommand(CommandBase):
         f.write(speed_b)
         f.write(zone_b)
 
+    def to_rapid(self, sync_move = False, cmd_num = 0, **kwargs):
+        to_point_str = self.to_point.to_rapid()
+        speed_str = self.speed.to_rapid()
+        zone_str = self.zone.to_rapid()
+
+        sync_id = "" if not sync_move else f"\\ID:={cmd_num},"
+        return f"MoveJ {to_point_str}, {sync_id}{speed_str}, {zone_str}, motion_program_tool\Wobj:=motion_program_wobj;"
+
     _append_method_doc = ""
 
 @dataclass
@@ -59,6 +71,14 @@ class MoveLCommand(CommandBase):
         f.write(to_point_b)
         f.write(speed_b)
         f.write(zone_b)
+
+    def to_rapid(self, sync_move = False, cmd_num = 0, **kwargs):
+        to_point_str = self.to_point.to_rapid()
+        speed_str = self.speed.to_rapid()
+        zone_str = self.zone.to_rapid()
+
+        sync_id = "" if not sync_move else f"\\ID:={cmd_num},"
+        return f"MoveL {to_point_str}, {sync_id}{speed_str}, {zone_str}, motion_program_tool\Wobj:=motion_program_wobj;"
 
     _append_method_doc = ""
 
@@ -82,6 +102,14 @@ class MoveCCommand(CommandBase):
         f.write(speed_b)
         f.write(zone_b)
 
+    def to_rapid(self, sync_move = False, cmd_num = 0, **kwargs):
+        cir_point_str = self.cir_point.to_rapid()
+        to_point_str = self.to_point.to_rapid()
+        speed_str = self.speed.to_rapid()
+        zone_str = self.zone.to_rapid()
+        sync_id = "" if not sync_move else f"\\ID:={cmd_num},"
+        return f"MoveC {cir_point_str}, {sync_id}{to_point_str}, {speed_str}, {zone_str}, motion_program_tool\Wobj:=motion_program_wobj;"
+
     _append_method_doc = ""
 
 @dataclass
@@ -92,6 +120,9 @@ class WaitTimeCommand(CommandBase):
 
     def write_params(self, f: io.IOBase):
         f.write(util.num_to_bin(self.t))
+
+    def to_rapid(self, **kwargs):
+        return f"WaitTime {self.t};"
 
     _append_method_doc = ""
 
@@ -106,6 +137,21 @@ class CirPathModeCommand(CommandBase):
         assert val >=1 and val <= 6, "Invalid CirPathMode switch"
         f.write(util.num_to_bin(val))
 
+    def to_rapid(self, **kwargs):
+        if  self.switch == 1:
+            return r"CirPathMode\PathFrame;"
+        if self.switch == 2:
+            return r"CirPathMode\ObjectFrame;"
+        if self.switch == 3:
+            return r"CirPathMode\CirPointOri;"
+        if self.switch == 4:
+            return r"CirPathMode\Wrist45;"
+        if self.switch == 5:
+            return r"CirPathMode\Wrist46;"
+        if self.switch == 6:
+            return r"CirPathMode\Wrist56;"
+        assert False, "Invalid CirPathMode switch"
+
     _append_method_doc = ""
 
 @dataclass
@@ -115,6 +161,9 @@ class SyncMoveOnCommand(CommandBase):
     def write_params(self, f: io.IOBase):
         pass
 
+    def to_rapid(self, **kwargs):
+        return "SyncMoveOn motion_program_sync1,task_list;"
+
     _append_method_doc = ""
 
 class SyncMoveOffCommand(CommandBase):
@@ -122,5 +171,8 @@ class SyncMoveOffCommand(CommandBase):
 
     def write_params(self, f: io.IOBase):
         pass
+
+    def to_rapid(self, **kwargs):
+        return "SyncMoveOff motion_program_sync2;"
 
     _append_method_doc = ""

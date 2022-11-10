@@ -117,63 +117,41 @@ class MotionProgram:
         self.write_program(f)
         return f.getvalue()
 
-    def write_program_wraped(self, f: io.TextIOBase, module_name="motion_program_exec_gen", sync_move=False):
-        pass
+    def write_program_rapid(self, f: io.TextIOBase, module_name="motion_program_exec_gen", sync_move=False):
+            
+        ver = MOTION_PROGRAM_FILE_VERSION
+        tooldata_str = self.tool.to_rapid()
+        wobjdata_str = self.wobj.to_rapid()
+        timestamp_str = self._timestamp
 
+
+        print(f"MODULE {module_name}", file=f)
+        print(f"    ! abb_motion_program_exec format version {ver}", file=f)
+        print(f"    ! abb_motion_program_exec timestamp {timestamp_str}", file=f)
+        print(f"    TASK PERS tooldata motion_program_tool := {tooldata_str};", file=f)
+        print(f"    TASK PERS wobjdata motion_program_wobj := {wobjdata_str};", file=f)
+        if sync_move:
+             print("    PERS tasks task_list{2} := [ [\"T_ROB1\"], [\"T_ROB2\"] ];", file=f)
+             print("    VAR syncident motion_program_sync1;", file=f)
+             print("    VAR syncident motion_program_sync2;", file=f)
+
+        print(f"    PROC main()", file=f)
+
+        for i in range(len(self._commands)):
+            cmd = self._commands[i]
+            cmd_num = i + self._first_cmd_num
+
+            print(f"        ! cmd_num = {cmd_num}",file=f)
+
+            print(f"        {cmd.to_rapid(sync_move=sync_move, cmd_num=cmd_num)}", file=f)
+        
+        print("    ENDPROC", file=f)
+        print("ENDMODULE", file=f)
+        
     def get_program_rapid(self, module_name="motion_program_exec_gen", sync_move=False):
-        pass
-        # program_bytes = self.get_program_bytes()
-        # f = io.BufferedReader(io.BytesIO(program_bytes))
-        # o = io.StringIO()
-
-        # ver = _read_num(f)
-        # tooldata_str = _tooldata_io_to_rapid(f)
-        # wobjdata_str = _wobjdata_io_to_rapid(f)
-        # timestamp_str = _read_str_to_rapid(f)
-
-
-        # print(f"MODULE {module_name}", file=o)
-        # print(f"    ! abb_motion_program_exec format version {ver}", file=o)
-        # print(f"    ! abb_motion_program_exec timestamp {timestamp_str}", file=o)
-        # print(f"    TASK PERS tooldata motion_program_tool := {tooldata_str};", file=o)
-        # print(f"    TASK PERS wobjdata motion_program_wobj := {wobjdata_str};", file=o)
-        # if sync_move:
-        #     print("    PERS tasks task_list{2} := [ [\"T_ROB1\"], [\"T_ROB2\"] ];", file=o)
-        #     print("    VAR syncident motion_program_sync1;", file=o)
-        #     print("    VAR syncident motion_program_sync2;", file=o)
-
-        # print(f"    PROC main()", file=o)
-        
-        # while True:
-        #     nums_bytes = f.peek(8)
-        #     if len(nums_bytes) < 8:
-        #         break
-        #     op = _num_struct_fmt.unpack_from(nums_bytes, 4)[0]
-        #     cmd_num = _num_struct_fmt.unpack_from(nums_bytes, 0)[0]
-        #     print(f"        ! cmd_num = {cmd_num}",file=o)
-        #     if op == MotionProgramCmd.MOVEABSJ:
-        #         print(f"        {_moveabsj_io_to_rapid(f, sync_move)}",file=o)
-        #     elif op == MotionProgramCmd.MOVEJ:
-        #         print(f"        {_movej_io_to_rapid(f, sync_move)}",file=o)
-        #     elif op == MotionProgramCmd.MOVEL:
-        #         print(f"        {_movel_io_to_rapid(f, sync_move)}",file=o)
-        #     elif op == MotionProgramCmd.MOVEC:
-        #         print(f"        {_movec_io_to_rapid(f, sync_move)}",file=o)
-        #     elif op == MotionProgramCmd.WAIT:
-        #         print(f"        {_waittime_io_to_rapid(f)}",file=o)
-        #     elif op == MotionProgramCmd.CIRPATHMODE:
-        #         print(f"        {_cirpathmode_io_to_rapid(f)}",file=o)
-        #     elif op == MotionProgramCmd.SYNCMOVEON:
-        #         print(f"        {_sync_move_on_io_to_rapid(f)}",file=o)
-        #     elif op == MotionProgramCmd.SYNCMOVEOFF:
-        #         print(f"        {_sync_move_off_io_to_rapid(f)}",file=o)
-        #     else:
-        #         assert False, f"Invalid command opcode: {op}"
-        
-        # print("    ENDPROC", file=o)
-        # print("ENDMODULE", file=o)
-        
-        # return o.getvalue()
+        o = io.StringIO()
+        self.write_program_rapid(o, module_name, sync_move)
+        return o.getvalue()
 
     def get_timestamp(self):
         return self._timestamp

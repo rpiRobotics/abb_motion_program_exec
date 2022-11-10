@@ -159,4 +159,4 @@ class wobjdata(NamedTuple):
 
     def to_rapid(self):
         return f"[{util.bool_to_rapid(self.robhold)},{util.bool_to_rapid(self.ufprog)}," \
-            f"{self.ufmec},{self.uframe.to_rapid()},{self.oframe.to_rapid()}]"
+            f"\"{self.ufmec}\",{self.uframe.to_rapid()},{self.oframe.to_rapid()}]"

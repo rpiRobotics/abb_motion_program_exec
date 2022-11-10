@@ -1,6 +1,6 @@
 # Multi-Move example using relative robot end effector poses
 
-import abb_motion_program_exec_client as abb
+import abb_motion_program_exec as abb
 
 
 # Fill motion program for T_ROB1
