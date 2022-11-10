@@ -128,7 +128,7 @@ class WaitTimeCommand(CommandBase):
 
 @dataclass
 class CirPathModeCommand(CommandBase):
-    command_opcode = 0x5
+    command_opcode = 0x6
 
     switch: CirPathModeSwitch
 
@@ -156,7 +156,7 @@ class CirPathModeCommand(CommandBase):
 
 @dataclass
 class SyncMoveOnCommand(CommandBase):
-    command_opcode = 0x6
+    command_opcode = 0x7
 
     def write_params(self, f: io.IOBase):
         pass
@@ -167,7 +167,7 @@ class SyncMoveOnCommand(CommandBase):
     _append_method_doc = ""
 
 class SyncMoveOffCommand(CommandBase):
-    command_opcode = 0x7
+    command_opcode = 0x8
 
     def write_params(self, f: io.IOBase):
         pass
