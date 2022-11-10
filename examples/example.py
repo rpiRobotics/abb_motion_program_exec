@@ -1,4 +1,4 @@
-import abb_motion_program_exec_client as abb
+import abb_motion_program_exec as abb
 
 j1 = abb.jointtarget([10,20,30,40,50,60],[0]*6)
 j2 = abb.jointtarget([90,-91,60,-93,94,-95],[0]*6)
@@ -52,7 +52,6 @@ log_results = client.execute_motion_program(mp)
 
 # log_results.data is a numpy array
 import matplotlib.pyplot as plt
-import matplotlib.ticker as plt_ticker
 fig, ax1 = plt.subplots()
 lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:])
 ax1.set_xlabel("Time (s)")
