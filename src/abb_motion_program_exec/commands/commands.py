@@ -6,7 +6,7 @@ from . import util
 
 @dataclass
 class MoveAbsJCommand(CommandBase):
-    command_opcode = 0x1
+    command_opcode = 1
 
     to_joint_pos: jointtarget
     speed: speeddata
@@ -31,7 +31,7 @@ class MoveAbsJCommand(CommandBase):
 
 @dataclass
 class MoveJCommand(CommandBase):
-    command_opcode = 0x2
+    command_opcode = 2
 
     to_point: robtarget
     speed: speeddata
@@ -57,7 +57,7 @@ class MoveJCommand(CommandBase):
 
 @dataclass
 class MoveLCommand(CommandBase):
-    command_opcode = 0x3
+    command_opcode = 3
 
     to_point: robtarget
     speed: speeddata
@@ -84,7 +84,7 @@ class MoveLCommand(CommandBase):
 
 @dataclass
 class MoveCCommand(CommandBase):
-    command_opcode = 0x4
+    command_opcode = 4
 
     cir_point: robtarget
     to_point: robtarget
@@ -114,7 +114,7 @@ class MoveCCommand(CommandBase):
 
 @dataclass
 class WaitTimeCommand(CommandBase):
-    command_opcode=0x5
+    command_opcode=5
 
     t: float
 
@@ -128,7 +128,7 @@ class WaitTimeCommand(CommandBase):
 
 @dataclass
 class CirPathModeCommand(CommandBase):
-    command_opcode = 0x6
+    command_opcode = 6
 
     switch: CirPathModeSwitch
 
@@ -156,7 +156,7 @@ class CirPathModeCommand(CommandBase):
 
 @dataclass
 class SyncMoveOnCommand(CommandBase):
-    command_opcode = 0x7
+    command_opcode = 7
 
     def write_params(self, f: io.IOBase):
         pass
@@ -167,7 +167,7 @@ class SyncMoveOnCommand(CommandBase):
     _append_method_doc = ""
 
 class SyncMoveOffCommand(CommandBase):
-    command_opcode = 0x8
+    command_opcode = 8
 
     def write_params(self, f: io.IOBase):
         pass
