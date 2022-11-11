@@ -1,6 +1,6 @@
 # Multi-Move example using relative robot end effector poses
 
-import abb_motion_program_exec_client as abb
+import abb_motion_program_exec as abb
 
 
 # Fill motion program for T_ROB1
@@ -52,7 +52,6 @@ log_results = client.execute_multimove_motion_program([mp,mp2])
 
 # log_results.data is a numpy array
 import matplotlib.pyplot as plt
-import matplotlib.ticker as plt_ticker
 fig, ax1 = plt.subplots()
 lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:8])
 ax1.set_xlabel("Time (s)")

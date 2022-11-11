@@ -25,11 +25,6 @@ and executes the contents of `motion_program.bin`. `motion_program.bin`
 contains the sequence of instructions to run, encoded in binary
 format for fast interpretation.
 
-The Python client module is `abb_motion_program_exec_client.py`. This
-script can be executed to run a sample motion sequence on an ABB 1200
-robot. (Simulation only due to the choice of waypoints!) The
-module can also be included in another Python program.
-
 **Only one instance of a Robot Studio virtual controller can be run at a time.** Only
 instances of Robot Studio can be run at a time running a single virtual controller. This is due to
 the controller using TCP port 80 on the local computer to accept REST commands from Python. If
@@ -183,7 +178,7 @@ The field `column_headers` contains a list of the column headers.
 
 ## Python module installation
 
-The `abb_motion_program_exec_client` module can be installed into the local Python
+The `abb_motion_program_exec` module can be installed into the local Python
 installation using the following command executed in the project root directory:
 
 ```
@@ -193,7 +188,7 @@ pip install --user .
 ## Example
 
 ```python
-import abb_motion_program_exec_client as abb
+import abb_motion_program_exec as abb
 
 j1 = abb.jointtarget([10,20,30,40,50,60],[0]*6)
 j2 = abb.jointtarget([90,-91,60,-93,94,-95],[0]*6)
@@ -247,7 +242,6 @@ log_results = client.execute_motion_program(mp)
 
 # log_results.data is a numpy array
 import matplotlib.pyplot as plt
-import matplotlib.ticker as plt_ticker
 fig, ax1 = plt.subplots()
 lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:])
 ax1.set_xlabel("Time (s)")
@@ -274,7 +268,7 @@ to cause the robots to move in sync. The `execute_multimove_motion_program()` fu
 of `MotionProgramExecClient` is used to send multi-move programs to the robot.
 
 ```python
-import abb_motion_program_exec_client as abb
+import abb_motion_program_exec as abb
 
 # Fill motion program for T_ROB1
 t1 = abb.robtarget([575,-200,1280],[0,-.707,0,.707],abb.confdata(0,0,-1,1),[0]*6)
@@ -323,7 +317,6 @@ log_results = client.execute_multimove_motion_program([mp,mp2])
 
 # log_results.data is a numpy array
 import matplotlib.pyplot as plt
-import matplotlib.ticker as plt_ticker
 fig, ax1 = plt.subplots()
 lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:8])
 ax1.set_xlabel("Time (s)")
@@ -352,7 +345,7 @@ Multi-Move example using relative work object:
 ```python
 # Multi-Move example using relative robot end effector poses
 
-import abb_motion_program_exec_client as abb
+import abb_motion_program_exec as abb
 
 
 # Fill motion program for T_ROB1
@@ -399,7 +392,6 @@ log_results = client.execute_multimove_motion_program([mp,mp2])
 
 # log_results.data is a numpy array
 import matplotlib.pyplot as plt
-import matplotlib.ticker as plt_ticker
 fig, ax1 = plt.subplots()
 lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:8])
 ax1.set_xlabel("Time (s)")
