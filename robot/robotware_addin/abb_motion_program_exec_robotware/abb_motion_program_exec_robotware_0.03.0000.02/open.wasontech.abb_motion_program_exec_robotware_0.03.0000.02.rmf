@@ -29,10 +29,10 @@
   </Rules>
   <Packages>
     <FeatureRef id="open.wasontech.abb_motion_program_exec_robotware.motion_program_exec">
-      <Package id="open.wasontech.abb_motion_program_exec_robotware_0.03.0000.02.rpk" platform="vc;rc;rcsim" />
+      <Package id="open.wasontech.abb_motion_program_exec_robotware_0.03.0000.02.rpk" platform="vc;rc;rcsim" digest="9303767A8BA935ED37ED862E252954A8A4909391" />
     </FeatureRef>
     <FeatureRef id="open.wasontech.abb_motion_program_exec_robotware.motion_program_exec_multimove">
-      <Package id="open.wasontech.abb_motion_program_exec_robotware_0.03.0000.02.rpk" platform="vc;rc;rcsim" />
+      <Package id="open.wasontech.abb_motion_program_exec_robotware_0.03.0000.02.rpk" platform="vc;rc;rcsim" digest="9303767A8BA935ED37ED862E252954A8A4909391" />
     </FeatureRef>
   </Packages>
 </ProductManifest>

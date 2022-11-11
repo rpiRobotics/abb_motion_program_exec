@@ -5,8 +5,8 @@
     <description>abb_motion_program_exec_robotware AddIn</description>
     <publisher>Wason Technology, LLC</publisher>
     <url>http://wasontech.com</url>
-    <publish_date>2022-01-30</publish_date>
-    <version>0.02.0000.00</version>
+    <publish_date>2022-11-10</publish_date>
+    <version>0.03.0000.02</version>
   </metadata>
   <res>
     <payload id="open.wasontech.abb_motion_program_exec_robotware">
@@ -16,13 +16,15 @@
         <platform>vc</platform>
       </platforms>
       <files>
-        <file dest="abb_motion_program_exec_robotware_0.02.0000.00\abb_motion_program_exec_robotware_0.01.0000.00\config\EIO.cfg" src=".\..\..\config_params\EIO.cfg" />
-        <file dest="abb_motion_program_exec_robotware_0.02.0000.00\abb_motion_program_exec_robotware_0.01.0000.00\config\SYS.cfg" src=".\..\..\config_params\SYS.cfg" />
-        <file dest="abb_motion_program_exec_robotware_0.02.0000.00\abb_motion_program_exec_robotware_0.01.0000.00\RAPID\error_reporter.mod" src=".\..\..\HOME\error_reporter.mod" />
-        <file dest="abb_motion_program_exec_robotware_0.02.0000.00\abb_motion_program_exec_robotware_0.01.0000.00\RAPID\motion_program_exec.mod" src=".\..\..\HOME\motion_program_exec.mod" />
-        <file dest="abb_motion_program_exec_robotware_0.02.0000.00\abb_motion_program_exec_robotware_0.01.0000.00\RAPID\motion_program_logger.mod" src=".\..\..\HOME\motion_program_logger.mod" />
-        <file dest="abb_motion_program_exec_robotware_0.02.0000.00\abb_motion_program_exec_robotware_0.01.0000.00\RAPID\mp.sys" src=".\..\..\HOME\mp.sys" />
-        <file dest="abb_motion_program_exec_robotware_0.02.0000.00\abb_motion_program_exec_robotware_0.01.0000.00\install.cmd" src=".\..\install.cmd" />
+        <file dest="abb_motion_program_exec_robotware_0.03.0000.02\abb_motion_program_exec_robotware_0.03.0000.01\abb_motion_program_exec_robotware_0.03.0000.00\config\EIO.cfg" src=".\..\..\config_params\EIO.cfg" />
+        <file dest="abb_motion_program_exec_robotware_0.03.0000.02\abb_motion_program_exec_robotware_0.03.0000.01\abb_motion_program_exec_robotware_0.03.0000.00\config\SYS.cfg" src=".\..\..\config_params\SYS.cfg" />
+        <file dest="abb_motion_program_exec_robotware_0.03.0000.02\abb_motion_program_exec_robotware_0.03.0000.01\abb_motion_program_exec_robotware_0.03.0000.00\RAPID\error_reporter.mod" src=".\..\..\HOME\error_reporter.mod" />
+        <file dest="abb_motion_program_exec_robotware_0.03.0000.02\abb_motion_program_exec_robotware_0.03.0000.01\abb_motion_program_exec_robotware_0.03.0000.00\RAPID\motion_program_exec.mod" src=".\..\..\HOME\motion_program_exec.mod" />
+        <file dest="abb_motion_program_exec_robotware_0.03.0000.02\abb_motion_program_exec_robotware_0.03.0000.01\abb_motion_program_exec_robotware_0.03.0000.00\RAPID\motion_program_logger.mod" src=".\..\..\HOME\motion_program_logger.mod" />
+        <file dest="abb_motion_program_exec_robotware_0.03.0000.02\abb_motion_program_exec_robotware_0.03.0000.01\abb_motion_program_exec_robotware_0.03.0000.00\RAPID\motion_program_shared.sys" src=".\..\..\HOME\motion_program_shared.sys" />
+        <file dest="abb_motion_program_exec_robotware_0.03.0000.02\abb_motion_program_exec_robotware_0.03.0000.01\abb_motion_program_exec_robotware_0.03.0000.00\config_multimove\EIO.cfg" src=".\..\..\config_params_multimove\EIO.cfg" />
+        <file dest="abb_motion_program_exec_robotware_0.03.0000.02\abb_motion_program_exec_robotware_0.03.0000.01\abb_motion_program_exec_robotware_0.03.0000.00\config_multimove\SYS.cfg" src=".\..\..\config_params_multimove\SYS.cfg" />
+        <file dest="abb_motion_program_exec_robotware_0.03.0000.02\abb_motion_program_exec_robotware_0.03.0000.01\abb_motion_program_exec_robotware_0.03.0000.00\install.cmd" src=".\..\install.cmd" />
       </files>
     </payload>
   </res>
