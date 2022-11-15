@@ -317,11 +317,12 @@ class MotionProgramExecClient:
         found_log_close = False
         log_filename = ""
 
-        for l in log_after:
+        for l in reversed(log_after):
             if l.code == 80003:
                 if l.args[0].lower() == "motion program log file closed":
-                    assert not found_log_close, "Found more than one log closed message"
-                    found_log_close = True
+                    if found_log_open:
+                        assert not found_log_close, "Found more than one log closed message"
+                        found_log_close = True
                 
                 if l.args[0].lower() == "motion program log file opened":
                     assert not found_log_open, "Found more than one log opened message"
