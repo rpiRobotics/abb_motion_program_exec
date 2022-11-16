@@ -14,7 +14,7 @@ MODULE motion_program_exec
     LOCAL VAR rawbytes motion_program_bytes;
     LOCAL VAR num motion_program_bytes_offset;
 
-    TASK PERS tooldata motion_program_tool:=[TRUE,[[0,0,0.1],[1,0,0,0]],[0.001,[0,0,0.001],[1,0,0,0],0,0,0]];
+    TASK PERS tooldata motion_program_tool:=[TRUE,[[0,0,0],[1,0,0,0]],[0.001,[0,0,0.001],[1,0,0,0],0,0,0]];
     TASK PERS wobjdata motion_program_wobj:=[FALSE,TRUE,"",[[0,0,0],[1,0,0,0]],[[0,0,0],[1,0,0,0]]];
 
     LOCAL VAR rmqslot logger_rmq;
@@ -37,8 +37,6 @@ MODULE motion_program_exec
 
     LOCAL VAR num task_ind;
     LOCAL VAR string motion_program_filename;
-
-    VAR bool motion_program_have_egm:=TRUE;
 
     PROC motion_program_main()
         motion_program_init;
@@ -77,7 +75,7 @@ MODULE motion_program_exec
         CONNECT motion_trigg_intno WITH motion_trigg_trap;
         TriggInt motion_trigg_data,0.001,\Start,motion_trigg_intno;
         RMQFindSlot logger_rmq,"RMQ_logger";
-        try_motion_program_egm_init;
+        motion_program_egm_init;
     ENDPROC
 
     PROC motion_program_fini()
@@ -105,7 +103,6 @@ MODULE motion_program_exec
         VAR tooldata mtool;
         VAR wobjdata mwobj;
         VAR string timestamp;
-        VAR num egm_cmd;
 
         motion_program_state{task_ind}.motion_program_filename:=filename;
         motion_program_clear_bytes;
@@ -140,20 +137,11 @@ MODULE motion_program_exec
 
         motion_program_tool:=mtool;
         motion_program_wobj:=mwobj;
-
+        
         SetSysData motion_program_tool;
         SetSysData motion_program_wobj;
-
-        IF motion_program_have_egm THEN
-            motion_program_egm_enable;
-        ELSE
-            IF NOT try_motion_program_read_num(egm_cmd) THEN
-                RAISE ERR_INVALID_MP_FILE;
-            ENDIF
-            IF egm_cmd<>0 THEN
-                RAISE ERR_INVALID_MP_FILE;
-            ENDIF
-        ENDIF
+        
+        motion_program_egm_enable;
     ENDPROC
 
     PROC close_motion_program_file()
@@ -201,12 +189,12 @@ MODULE motion_program_exec
         ENDIF
         local_cmd_ind:=((motion_max_cmd_ind-1) MOD 128)+1;
 
-        IF (cmd_op DIV 10000)=5 THEN
+        IF (cmd_op DIV 10000) = 5 THEN
             ! EGM command numbers start at 50000
             motion_cmd_num_history{local_cmd_ind}:=-1;
-            RETURN try_motion_program_run_egm_cmd(cmd_num,cmd_op);
+            RETURN try_motion_program_run_egm_cmd(cmd_num, cmd_op);
         ENDIF
-
+        
         TEST cmd_op
         CASE MOTION_PROGRAM_CMD_NOOP:
             RETURN TRUE;
@@ -420,7 +408,7 @@ MODULE motion_program_exec
         zd.finep:=finep_num<>0;
         RETURN TRUE;
     ENDFUNC
-
+    
     FUNC bool try_motion_program_read_pose(INOUT pose p)
         IF NOT (
             try_motion_program_read_num(p.trans.x)
@@ -612,7 +600,7 @@ MODULE motion_program_exec
         VAR string filename;
         IF motion_program_preempt>motion_program_state{task_ind}.preempt_current THEN
             IF motion_max_cmd_ind=motion_program_preempt_cmd_num THEN
-                IF task_ind=1 THEN
+                IF task_ind = 1 THEN
                     filename:=StrFormat("motion_program_p{1}.bin"\Arg1:=NumToStr(motion_program_preempt,0));
                 ELSE
                     filename:=StrFormat("motion_program2_p{1}.bin"\Arg1:=NumToStr(motion_program_preempt,0));
@@ -653,15 +641,5 @@ MODULE motion_program_exec
             ENDIF
         ENDIF
     ENDTRAP
-
-    PROC try_motion_program_egm_init()
-        motion_program_egm_init;
-    ERROR
-        IF ERRNO=ERR_REFUNKPRC THEN
-            SkipWarn;
-            motion_program_have_egm:=FALSE;
-            TRYNEXT;
-        ENDIF
-    ENDPROC
 
 ENDMODULE
