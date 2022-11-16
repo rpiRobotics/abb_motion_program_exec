@@ -54,7 +54,8 @@ popup menu.
 ![](figures/robotstudio_change_options.png)
 
 In the "Change Options" window, select "Communication" -> "616-1 PC Interface" and 
-"Engineering Tools" -> "623-1 Multitasking".
+"Engineering Tools" -> "623-1 Multitasking". If using EGM, also select "Engineering Tools" -> 
+"689-1 Externally Guided Motion".
 
 ![](figures/robotstudio_change_options2.png)
 
@@ -71,21 +72,26 @@ changed on previously.) Click "Open Folder".
 
 Copy `error_reporter.mod`, `motion_program_exec.mod`, `motion_program_logger.mod`, and
 `motion_program_shared.sys` from `<repo_root>/robot/HOME` to the folder opened by clicking "Open Folder". The four
-files should now be visible under "HOME" in the tree view in RobotStudio.
+files should now be visible under "HOME" in the tree view in RobotStudio. If using EGM, also copy
+`motion_program_exec_egm.mod` to the "HOME" folder.
 
 ![](figures/robotstudio_rapid_copied.png)
 
 Right click on "Configuration" in the controller tree, and click on "Load Parameters". Browse to 
 `<repo_root>/robot/config_params` and select `SYS.cfg`. Click OK to confirm loading parameters,
 and OK to acknowledge restart is required. Repeat for `EIO.cfg` in the same directory. Make sure
-"Load parameters and replace duplicates" is selected in the file browser window for both.  Click
+"Load parameters and replace duplicates" is selected in the file browser window for both. Click
 "Controller" -> "Restart (drop down)" -> "Reset RAPID (P-Start)" to restart the controller with 
 the new software. Select "OK" to confirm RAPID reset.
+
+If using EGM, use the configuration files from `<repo_root>/robot/config_params_egm`, and load `SYS.cfg`,
+`EIO.cfg`, and `MOC.cfg` instead of the files in `config_params`. P-Start once loaded to load the changes. (It is
+safe to load these different configuration files after the normal files.)
 
 ![](figures/robotstudio_restart.png)
 
 The installation should now be complete. The following should match, and can be checked against 
-your system to verify installation:
+your system to verify installation (if using EGM, there will be additional files and signals):
 
 ![](figures/robotstudio_addin_installed1.png)
 
@@ -103,19 +109,21 @@ your system to verify installation:
 
 ## 3. Run Programs
 
-The robot is now ready to run programs! The `abb_motion_program_exec_client.py` can either
-be imported to be used as a python module, or can be run directly to run an example
-motion sequence.
+Install the module using `pip install .`.
+
+The robot is now ready to run programs! The `<repo_root>/examples` directory contains examples to use the scripts.
 
 ```
-python abb_motion_program_exec_client.py
+python example.py
 ```
 
 On Linux, it may be necessary to run `python3`
 
 ```
-python3 abb_motion_program_exec_client.py
+python3 example.py
 ```
+
+EGM examples can be found in `<repo_root>/examples/egm`.
 
 By default, the virtual controller listens on `http://localhost:80` for requests. The Python
 module uses ABB WebServices for communication.
