@@ -26,6 +26,9 @@ from .commands.rapid_types import *
 from .commands import util
 from .commands import commands
 from .commands.command_base import command_append_method
+from .commands import egm_commands
+from .commands.egm_commands import EGMStreamConfig, EGMJointTargetConfig, EGMPoseTargetConfig, EGMPathCorrectionConfig, \
+    egm_minmax, egmframetype
 
 MOTION_PROGRAM_FILE_VERSION = 10008
 
@@ -74,7 +77,12 @@ class MotionProgram:
     SyncMoveOn = command_append_method(commands.SyncMoveOnCommand)
     SyncMoveOff = command_append_method(commands.SyncMoveOffCommand)
 
-    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, wobj: wobjdata = None, timestamp: str = None):
+    EGMRunJoint = command_append_method(egm_commands.EGMRunJointCommand)
+    EGMRunPose = command_append_method(egm_commands.EGMRunPoseCommand)
+    EGMMoveL = command_append_method(egm_commands.EGMMoveLCommand)
+    EGMMoveC = command_append_method(egm_commands.EGMMoveCCommand)
+
+    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, wobj: wobjdata = None, timestamp: str = None, egm_config = None):
 
         self._commands = []
 
@@ -93,6 +101,8 @@ class MotionProgram:
 
         self._first_cmd_num=first_cmd_num
 
+        self._egm_config = egm_config
+
     def _append_command(self, cmd):
         self._commands.append(cmd)
 
@@ -103,6 +113,8 @@ class MotionProgram:
         f.write(util.tooldata_to_bin(self.tool))
         f.write(util.wobjdata_to_bin(self.wobj))
         f.write(util.str_to_bin(self._timestamp))
+
+        egm_commands.write_egm_config(f,self._egm_config)
 
         for i in range(len(self._commands)):
             cmd = self._commands[i]
@@ -305,11 +317,12 @@ class MotionProgramExecClient:
         found_log_close = False
         log_filename = ""
 
-        for l in log_after:
+        for l in reversed(log_after):
             if l.code == 80003:
                 if l.args[0].lower() == "motion program log file closed":
-                    assert not found_log_close, "Found more than one log closed message"
-                    found_log_close = True
+                    if found_log_open:
+                        assert not found_log_close, "Found more than one log closed message"
+                        found_log_close = True
                 
                 if l.args[0].lower() == "motion program log file opened":
                     assert not found_log_open, "Found more than one log opened message"
@@ -327,6 +340,12 @@ class MotionProgramExecClient:
         except:
             pass
         return _unpack_motion_program_result_log(log_contents)
+
+    def stop_motion_program(self):
+        self.abb_client.stop()
+
+    def stop_egm(self):
+        self.abb_client.set_digital_io("motion_program_stop_egm", 1)
 
 def main():
     j1 = jointtarget([10,20,30,40,50,60],[0]*6)

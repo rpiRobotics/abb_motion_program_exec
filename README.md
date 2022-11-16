@@ -4,7 +4,7 @@
 `MoveAbsJ`, `MoveJ`, `MoveL`, `MoveC`, and `WaitTime` commands on
 an ABB IRC5 robot controller. This program is intended to be a proof of
 concept for more sophisticated controller interfaces. Multi-move control of two robots is also
-supported.
+supported. Externally Guided Motion (EGM) is also supported for joint target, pose target, and path correction modes.
 
 ## Installation
 
@@ -178,12 +178,21 @@ The field `column_headers` contains a list of the column headers.
 
 ## Python module installation
 
-The `abb_motion_program_exec` module can be installed into the local Python
-installation using the following command executed in the project root directory:
+The `abb_motion_program_exec` module is available on PyPI and can be installed using pip:
 
 ```
-pip install --user .
+pip install abb_motion_program_exec
 ```
+
+For development, use of a `virtualenv` is recommended. Use editable install with the virtualenv:
+
+```
+pip install -e .
+```
+
+## Externally Guided Motion (EGM)
+
+See [egm.md](doc/egm.md) for instructions on using EGM.
 
 ## Example
 
