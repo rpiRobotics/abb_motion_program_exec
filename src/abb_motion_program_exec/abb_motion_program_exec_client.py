@@ -353,6 +353,15 @@ class MotionProgramExecClient:
     def stop_egm(self):
         self.abb_client.set_digital_io("motion_program_stop_egm", 1)
 
+    def enable_motion_logging(self):
+        self.abb_client.set_digital_io("motion_program_log_motion", 1)
+
+    def disable_motion_logging(self):
+        self.abb_client.set_digital_io("motion_program_log_motion", 0)
+
+    def get_motion_logging_enabled(self):
+        return self.abb_client.get_digital_io("motion_program_log_motion") > 0
+
 def main():
     j1 = jointtarget([10,20,30,40,50,60],[0]*6)
     j2 = jointtarget([90,-91,60,-93,94,-95],[0]*6)
