@@ -30,7 +30,7 @@ from .commands import egm_commands
 from .commands.egm_commands import EGMStreamConfig, EGMJointTargetConfig, EGMPoseTargetConfig, EGMPathCorrectionConfig, \
     egm_minmax, egmframetype
 
-MOTION_PROGRAM_FILE_VERSION = 10008
+MOTION_PROGRAM_FILE_VERSION = 10010
 
 class MotionProgramResultLog(NamedTuple):
     timestamp: str
@@ -48,8 +48,8 @@ def _unpack_motion_program_result_log(b: bytes):
     data = data_flat.reshape((-1,len(headers)))
     return MotionProgramResultLog(timestamp_str, headers, data)
 
-def _get_motion_program_file(path: str, motion_program: "MotionProgram", task="T_ROB1", preempt_number=None):
-    b = motion_program.get_program_bytes()
+def _get_motion_program_file(path: str, motion_program: "MotionProgram", task="T_ROB1", preempt_number=None, seqno = None):
+    b = motion_program.get_program_bytes(seqno)
     assert len(b) > 0, "Motion program must not be empty"
     ramdisk = path
     filename = f"{ramdisk}/motion_program"
@@ -82,7 +82,7 @@ class MotionProgram:
     EGMMoveL = command_append_method(egm_commands.EGMMoveLCommand)
     EGMMoveC = command_append_method(egm_commands.EGMMoveCCommand)
 
-    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, wobj: wobjdata = None, timestamp: str = None, egm_config = None):
+    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, wobj: wobjdata = None, timestamp: str = None, egm_config = None, seqno = 0):
 
         self._commands = []
 
@@ -102,17 +102,22 @@ class MotionProgram:
         self._first_cmd_num=first_cmd_num
 
         self._egm_config = egm_config
+        self._seqno = seqno
 
     def _append_command(self, cmd):
         self._commands.append(cmd)
 
-    def write_program(self, f: io.IOBase):
+    def write_program(self, f: io.IOBase, seqno = None):
         # Version number
         f.write(util.num_to_bin(MOTION_PROGRAM_FILE_VERSION))
         
         f.write(util.tooldata_to_bin(self.tool))
         f.write(util.wobjdata_to_bin(self.wobj))
         f.write(util.str_to_bin(self._timestamp))
+        if seqno is not None:
+            f.write(util.num_to_bin(seqno))
+        else:
+            f.write(util.num_to_bin(self._seqno))
 
         egm_commands.write_egm_config(f,self._egm_config)
 
@@ -124,9 +129,9 @@ class MotionProgram:
 
             cmd.write_params(f)    
 
-    def get_program_bytes(self):
+    def get_program_bytes(self, seqno = None):
         f = io.BytesIO()
-        self.write_program(f)
+        self.write_program(f, seqno)
         return f.getvalue()
 
     def write_program_rapid(self, f: io.TextIOBase, module_name="motion_program_exec_gen", sync_move=False):
@@ -176,8 +181,8 @@ class MotionProgramExecClient:
         else:
             self.abb_client = abb_client
 
-    def execute_motion_program(self, motion_program: MotionProgram, task="T_ROB1", wait : bool = True):
-        filename, b = _get_motion_program_file(self.abb_client.get_ramdisk_path(), motion_program, task)
+    def execute_motion_program(self, motion_program: MotionProgram, task="T_ROB1", wait : bool = True, seqno: int = None):
+        filename, b = _get_motion_program_file(self.abb_client.get_ramdisk_path(), motion_program, task, seqno = seqno)
         def _upload():            
             self.abb_client.upload_file(filename, b)
 
@@ -188,8 +193,8 @@ class MotionProgramExecClient:
         return self.read_motion_program_result_log(prev_seqnum)
 
     def preempt_motion_program(self, motion_program: MotionProgram, task="T_ROB1", preempt_number: int = 1, 
-        preempt_cmdnum : int = -1):
-        filename, b = _get_motion_program_file(self.abb_client.get_ramdisk_path(), motion_program, task, preempt_number)
+        preempt_cmdnum : int = -1, seqno: int = None):
+        filename, b = _get_motion_program_file(self.abb_client.get_ramdisk_path(), motion_program, task, preempt_number, seqno = seqno)
         self.abb_client.upload_file(filename, b)
         self.abb_client.set_analog_io("motion_program_preempt_cmd_num", preempt_cmdnum)
         self.abb_client.set_analog_io("motion_program_preempt", preempt_number)
@@ -204,7 +209,8 @@ class MotionProgramExecClient:
         return self.abb_client.get_analog_io("motion_program_preempt_current") 
         
 
-    def execute_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks=None, wait : bool = True):
+    def execute_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks=None, wait : bool = True,
+        seqno: int = None):
 
         if tasks is None:
             tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
@@ -219,7 +225,7 @@ class MotionProgramExecClient:
         ramdisk = self.abb_client.get_ramdisk_path()
 
         for mp, task in zip(motion_programs, tasks):
-            filename1, b1 = _get_motion_program_file(ramdisk, mp, task)
+            filename1, b1 = _get_motion_program_file(ramdisk, mp, task, seqno = seqno)
             filenames.append(filename1)
             b.append(b1)
 
@@ -236,7 +242,7 @@ class MotionProgramExecClient:
         return self.read_motion_program_result_log(prev_seqnum)
 
     def preempt_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks=None, 
-        preempt_number: int = 1, preempt_cmdnum : int = -1):
+        preempt_number: int = 1, preempt_cmdnum : int = -1, seqno: int = None):
         if tasks is None:
             tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
 
@@ -250,7 +256,7 @@ class MotionProgramExecClient:
         ramdisk = self.abb_client.get_ramdisk_path()
 
         for mp, task in zip(motion_programs, tasks):
-            filename1, b1 = _get_motion_program_file(ramdisk, mp, task, preempt_number)
+            filename1, b1 = _get_motion_program_file(ramdisk, mp, task, preempt_number, seqno = seqno)
             filenames.append(filename1)
             b.append(b1)
 
@@ -346,6 +352,15 @@ class MotionProgramExecClient:
 
     def stop_egm(self):
         self.abb_client.set_digital_io("motion_program_stop_egm", 1)
+
+    def enable_motion_logging(self):
+        self.abb_client.set_digital_io("motion_program_log_motion", 1)
+
+    def disable_motion_logging(self):
+        self.abb_client.set_digital_io("motion_program_log_motion", 0)
+
+    def get_motion_logging_enabled(self):
+        return self.abb_client.get_digital_io("motion_program_log_motion") > 0
 
 def main():
     j1 = jointtarget([10,20,30,40,50,60],[0]*6)
