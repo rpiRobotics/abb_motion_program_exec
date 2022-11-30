@@ -136,7 +136,7 @@ MODULE motion_program_logger
         IF log_file_open THEN
             motion_program_log_close;
         ENDIF
-        IF StrLen(rmq_timestamp) > 0 THEN
+        IF StrLen(rmq_timestamp) > 0 AND motion_program_log_motion > 0 THEN
             motion_program_log_open;
         ENDIF
         IEnable;
