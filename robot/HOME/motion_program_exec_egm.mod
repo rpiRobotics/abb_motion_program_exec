@@ -205,6 +205,7 @@ MODULE motion_program_exec_egm
         EGMRunJoint egmID1,EGM_STOP_HOLD,\NoWaitCond\J1\J2\J3\J4\J5\J6\CondTime:=condtime\RampInTime:=rampin;
         WaitDO motion_program_stop_egm,1;
         EGMStop egmID1,EGM_STOP_HOLD\RampOutTime:=rampout;
+        EGMStreamStart egmID1\SampleRate:=egm_sample_rate;
 
         RETURN TRUE;
     ENDFUNC
@@ -228,6 +229,7 @@ MODULE motion_program_exec_egm
         EGMRunPose egmID1,EGM_STOP_HOLD,\NoWaitCond\x\y\z\Rx\Ry\Rz\CondTime:=condtime\RampInTime:=rampin\RampOutTime:=rampout\Offset:=offset;
         WaitDO motion_program_stop_egm,1;
         EGMStop egmID1,EGM_STOP_HOLD\RampOutTime:=rampout;
+        EGMStreamStart egmID1\SampleRate:=egm_sample_rate;
         RETURN TRUE;
     ENDFUNC
 

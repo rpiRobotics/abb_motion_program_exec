@@ -14,7 +14,7 @@ MODULE motion_program_exec
     LOCAL VAR rawbytes motion_program_bytes;
     LOCAL VAR num motion_program_bytes_offset;
 
-    TASK PERS tooldata motion_program_tool:=[TRUE,[[0,0,0.1],[1,0,0,0]],[0.001,[0,0,0.001],[1,0,0,0],0,0,0]];
+    TASK PERS tooldata motion_program_tool:=[TRUE,[[0,0,0],[1,0,0,0]],[0.001,[0,0,0.001],[1,0,0,0],0,0,0]];
     TASK PERS wobjdata motion_program_wobj:=[FALSE,TRUE,"",[[0,0,0],[1,0,0,0]],[[0,0,0],[1,0,0,0]]];
 
     LOCAL VAR rmqslot logger_rmq;
@@ -65,15 +65,14 @@ MODULE motion_program_exec
             SetAO motion_program_preempt_current,0;
             SetAO motion_program_preempt_cmd_num,-1;
             SetAO motion_program_current_cmd_num,-1;
+            SetAO motion_program_queued_cmd_num,-1;
+            SetAO motion_program_seqno,-1;
         ENDIF
         motion_program_state{task_ind}.current_cmd_num:=-1;
         motion_program_state{task_ind}.queued_cmd_num:=-1;
         motion_program_state{task_ind}.preempt_current:=0;
         motion_current_cmd_ind:=0;
         motion_max_cmd_ind:=0;
-        IF task_ind=1 THEN
-            SetAO motion_program_queued_cmd_num,0;
-        ENDIF
         CONNECT motion_trigg_intno WITH motion_trigg_trap;
         TriggInt motion_trigg_data,0.001,\Start,motion_trigg_intno;
         RMQFindSlot logger_rmq,"RMQ_logger";
@@ -106,6 +105,7 @@ MODULE motion_program_exec
         VAR wobjdata mwobj;
         VAR string timestamp;
         VAR num egm_cmd;
+        VAR num seqno;
 
         motion_program_state{task_ind}.motion_program_filename:=filename;
         motion_program_clear_bytes;
@@ -134,7 +134,16 @@ MODULE motion_program_exec
             RAISE ERR_INVALID_MP_FILE;
         ENDIF
 
+        IF NOT try_motion_program_read_num(seqno) THEN
+            ErrWrite "Invalid Motion Program Timestamp","Invalid motion program timestamp";
+            RAISE ERR_INVALID_MP_FILE;
+        ENDIF
+        
+        motion_program_state{task_ind}.program_seqno:=seqno;
         motion_program_state{task_ind}.program_timestamp:=timestamp;
+        IF task_ind=1 THEN
+            SetAO motion_program_seqno,seqno;
+        ENDIF
 
         ErrWrite\I,"Motion Program Opened","Motion Program Opened with timestamp: "+timestamp;
 
