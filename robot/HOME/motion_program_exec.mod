@@ -16,6 +16,7 @@ MODULE motion_program_exec
 
     TASK PERS tooldata motion_program_tool:=[TRUE,[[0,0,0],[1,0,0,0]],[0.001,[0,0,0.001],[1,0,0,0],0,0,0]];
     TASK PERS wobjdata motion_program_wobj:=[FALSE,TRUE,"",[[0,0,0],[1,0,0,0]],[[0,0,0],[1,0,0,0]]];
+    TASK PERS loaddata motion_program_gripload:=[0.001, [0, 0, 0.001],[1, 0, 0, 0], 0, 0, 0];
 
     LOCAL VAR rmqslot logger_rmq;
 
@@ -103,6 +104,7 @@ MODULE motion_program_exec
         VAR num ver;
         VAR tooldata mtool;
         VAR wobjdata mwobj;
+        VAR loaddata mgripload;
         VAR string timestamp;
         VAR num egm_cmd;
         VAR num seqno;
@@ -128,6 +130,11 @@ MODULE motion_program_exec
             ErrWrite "Invalid Motion Program Wobj","Invalid motion program wobj";
             RAISE ERR_INVALID_MP_FILE;
         ENDIF
+        
+        IF NOT try_motion_program_read_ld(mgripload) THEN
+            ErrWrite "Invalid Motion Program GripLoad","Invalid motion program wobj";
+            RAISE ERR_INVALID_MP_FILE;
+        ENDIF
 
         IF NOT try_motion_program_read_string(timestamp) THEN
             ErrWrite "Invalid Motion Program Timestamp","Invalid motion program timestamp";
@@ -149,9 +156,11 @@ MODULE motion_program_exec
 
         motion_program_tool:=mtool;
         motion_program_wobj:=mwobj;
+        motion_program_gripload:=mgripload;
 
         SetSysData motion_program_tool;
         SetSysData motion_program_wobj;
+        GripLoad motion_program_gripload;
 
         IF motion_program_have_egm THEN
             motion_program_egm_enable;
@@ -497,6 +506,26 @@ MODULE motion_program_exec
             RETURN FALSE;
         ENDIF
         td.robhold:=robhold_num<>0;
+        RETURN TRUE;
+    ENDFUNC
+    
+    FUNC bool try_motion_program_read_ld(INOUT loaddata ld)        
+        IF NOT (
+            try_motion_program_read_num(ld.mass)
+            AND try_motion_program_read_num(ld.cog.x)
+            AND try_motion_program_read_num(ld.cog.y)
+            AND try_motion_program_read_num(ld.cog.z)
+            AND try_motion_program_read_num(ld.aom.q1)
+            AND try_motion_program_read_num(ld.aom.q2)
+            AND try_motion_program_read_num(ld.aom.q3)
+            AND try_motion_program_read_num(ld.aom.q4)
+            AND try_motion_program_read_num(ld.ix)
+            AND try_motion_program_read_num(ld.iy)
+            AND try_motion_program_read_num(ld.iz)
+        )
+        THEN
+            RETURN FALSE;
+        ENDIF
         RETURN TRUE;
     ENDFUNC
 
