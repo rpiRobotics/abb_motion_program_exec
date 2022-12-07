@@ -132,7 +132,7 @@ MODULE motion_program_exec
         ENDIF
         
         IF NOT try_motion_program_read_ld(mgripload) THEN
-            ErrWrite "Invalid Motion Program GripLoad","Invalid motion program wobj";
+            ErrWrite "Invalid Motion Program GripLoad","Invalid motion program gripload";
             RAISE ERR_INVALID_MP_FILE;
         ENDIF
 
