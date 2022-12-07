@@ -30,7 +30,7 @@ from .commands import egm_commands
 from .commands.egm_commands import EGMStreamConfig, EGMJointTargetConfig, EGMPoseTargetConfig, EGMPathCorrectionConfig, \
     egm_minmax, egmframetype
 
-MOTION_PROGRAM_FILE_VERSION = 10010
+MOTION_PROGRAM_FILE_VERSION = 10011
 
 class MotionProgramResultLog(NamedTuple):
     timestamp: str
@@ -64,7 +64,8 @@ def _get_motion_program_file(path: str, motion_program: "MotionProgram", task="T
     return filename, b
 
 tool0 = tooldata(True,pose([0,0,0],[1,0,0,0]),loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0))
-wobj0 = wobjdata(False, True, "", pose([0,0,0],[1,0,0,0]), pose([0,0,0],[1,0,0,0]))        
+wobj0 = wobjdata(False, True, "", pose([0,0,0],[1,0,0,0]), pose([0,0,0],[1,0,0,0]))
+load0 = loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0)
 
 class MotionProgram:
 
@@ -82,7 +83,7 @@ class MotionProgram:
     EGMMoveL = command_append_method(egm_commands.EGMMoveLCommand)
     EGMMoveC = command_append_method(egm_commands.EGMMoveCCommand)
 
-    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, wobj: wobjdata = None, timestamp: str = None, egm_config = None, seqno = 0):
+    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, wobj: wobjdata = None, timestamp: str = None, egm_config = None, seqno = 0, gripload: loaddata = None):
 
         self._commands = []
 
@@ -94,10 +95,13 @@ class MotionProgram:
         
         self.tool = tool
         self.wobj = wobj
+        self.gripload = gripload
         if self.tool is None:
             self.tool = tool0
         if self.wobj is None:
             self.wobj = wobj0
+        if self.gripload is None:
+            self.gripload = load0
 
         self._first_cmd_num=first_cmd_num
 
@@ -113,6 +117,7 @@ class MotionProgram:
         
         f.write(util.tooldata_to_bin(self.tool))
         f.write(util.wobjdata_to_bin(self.wobj))
+        f.write(util.loaddata_to_bin(self.gripload))
         f.write(util.str_to_bin(self._timestamp))
         if seqno is not None:
             f.write(util.num_to_bin(seqno))

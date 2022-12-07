@@ -12,7 +12,7 @@ MODULE motion_program_shared
         num program_seqno;
     ENDRECORD
     
-    CONST num motion_program_file_version:=10010;
+    CONST num motion_program_file_version:=10011;
     
     PERS motion_program_state_type motion_program_state{2};
 
