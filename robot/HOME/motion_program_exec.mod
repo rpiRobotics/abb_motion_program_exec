@@ -649,13 +649,17 @@ MODULE motion_program_exec
     ENDFUNC
 
     PROC motion_program_req_log_start()
-        VAR string msg;
-        msg:=motion_program_state{task_ind}.program_timestamp;
+        VAR string msg{2};
+        msg{1}:=motion_program_state{task_ind}.program_timestamp;
+        msg{2}:=motion_program_state{task_ind}.program_timestamp;
+        IF MOTION_PROGRAM_DRIVER_MODE = 1 THEN
+            msg{2} := "motion_program---seqno-" + NumToStr(motion_program_state{task_ind}.program_seqno,0);
+        ENDIF
         RMQSendMessage logger_rmq,msg;
     ENDPROC
 
     PROC motion_program_req_log_end()
-        VAR string msg:="";
+        VAR string msg{2};
         RMQSendMessage logger_rmq,msg;
     ENDPROC
 
