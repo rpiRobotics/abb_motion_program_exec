@@ -23,6 +23,7 @@ MODULE motion_program_exec_egm
         ENDIF
 
         EGMReset egmID1;
+        WaitTime 0.005;
         EGMGetId egmID1;
         egmSt1:=EGMGetState(egmID1);
 
@@ -41,6 +42,12 @@ MODULE motion_program_exec_egm
         ENDIF
     ENDPROC
 
+    PROC motion_program_egm_start_stream()
+        IF have_egm THEN
+            EGMStreamStart egmID1\SampleRate:=egm_sample_rate;
+        ENDIF
+    ENDPROC
+    
     PROC motion_program_egm_enable()
         VAR num egm_cmd;
         IF NOT try_motion_program_read_num(egm_cmd) THEN

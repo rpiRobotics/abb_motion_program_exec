@@ -1,5 +1,7 @@
 MODULE motion_program_exec
 
+    CONST num MOTION_PROGRAM_DRIVER_MODE:=0;
+    
     CONST num MOTION_PROGRAM_CMD_NOOP:=0;
     CONST num MOTION_PROGRAM_CMD_MOVEABSJ:=1;
     CONST num MOTION_PROGRAM_CMD_MOVEJ:=2;
@@ -40,11 +42,19 @@ MODULE motion_program_exec
     LOCAL VAR string motion_program_filename;
 
     VAR bool motion_program_have_egm:=TRUE;
+    
+    LOCAL VAR num motion_program_driver_seqno;
+    
+    LOCAL VAR intnum motion_program_driver_abort_into;
 
     PROC motion_program_main()
-        motion_program_init;
-        run_motion_program_file(motion_program_filename);
-        motion_program_fini;
+        IF MOTION_PROGRAM_DRIVER_MODE = 0 THEN
+            motion_program_init;
+            run_motion_program_file(motion_program_filename);
+            motion_program_fini;
+        ELSE
+            motion_program_main_driver_mode;
+        ENDIF
     ENDPROC
 
     PROC motion_program_init()
@@ -74,6 +84,7 @@ MODULE motion_program_exec
         motion_program_state{task_ind}.preempt_current:=0;
         motion_current_cmd_ind:=0;
         motion_max_cmd_ind:=0;
+        IDelete motion_trigg_intno;
         CONNECT motion_trigg_intno WITH motion_trigg_trap;
         TriggInt motion_trigg_data,0.001,\Start,motion_trigg_intno;
         RMQFindSlot logger_rmq,"RMQ_logger";
@@ -175,6 +186,8 @@ MODULE motion_program_exec
     ENDPROC
 
     PROC close_motion_program_file()
+        VAR string filename;
+        filename:=motion_program_state{task_ind}.motion_program_filename;
         motion_program_state{task_ind}.motion_program_filename:="";
         Close motion_program_io_device;
     ERROR
@@ -702,4 +715,50 @@ MODULE motion_program_exec
         ENDIF
     ENDPROC
 
+    PROC motion_program_main_driver_mode()
+        IDelete motion_program_driver_abort_into;        
+        CONNECT motion_program_driver_abort_into WITH motion_program_abort_driver_mode;
+        motion_program_driver_seqno:=-1;
+        motion_program_init;
+        motion_program_egm_start_stream;
+        WaitUntil motion_program_seqno_command > motion_program_seqno_started AND motion_program_driver_abort = 0;
+        SetAO motion_program_seqno_started, motion_program_seqno_command;
+        ISignalDO motion_program_driver_abort, 1, motion_program_driver_abort_into;
+        motion_program_driver_seqno:=motion_program_seqno_command;
+        ErrWrite\I,"Motion Program Driver Begin Program",StrFormat("Motion Program Driver Begin Program seqno "\Arg1:=NumToStr(motion_program_driver_seqno,0));
+        IF task_ind=1 THEN
+            motion_program_filename:="motion_program---seqno-" + NumToStr(motion_program_driver_seqno,0) + ".bin";
+        ELSEIF task_ind=2 THEN
+            motion_program_filename:="motion_program2---seqno-" + NumToStr(motion_program_driver_seqno,0) +  ".bin";
+        ENDIF
+        run_motion_program_file(motion_program_filename);
+        !motion_program_reset_handler;
+        motion_program_fini_driver_mode;
+        ExitCycle;
+    ERROR
+        IF motion_program_driver_seqno > motion_program_seqno_complete THEN
+            SetAO motion_program_seqno_complete, motion_program_driver_seqno;
+            ErrWrite\I,"Motion Program Driver Program Complete","Motion Program Complete";
+        ENDIF
+        RAISE;
+    ENDPROC
+    
+    PROC motion_program_fini_driver_mode()
+        IF MOTION_PROGRAM_DRIVER_MODE = 1 THEN
+            IF motion_program_driver_seqno > motion_program_seqno_complete THEN
+                SetAO motion_program_seqno_complete, motion_program_driver_seqno;
+                ErrWrite\I,"Motion Program Driver Program Complete","Motion Program Complete";
+            ENDIF
+        ENDIF
+    ENDPROC
+    
+    TRAP motion_program_abort_driver_mode
+        motion_program_fini_driver_mode;
+        ExitCycle;
+    ENDTRAP
+    
+    PROC motion_program_stop_handler()
+        
+    ENDPROC
+    
 ENDMODULE
