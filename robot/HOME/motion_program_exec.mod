@@ -99,7 +99,7 @@ MODULE motion_program_exec
     PROC run_motion_program_file(string filename)
         ErrWrite\I,"Motion Program Begin","Motion Program Begin";
         close_motion_program_file;
-        open_motion_program_file(filename);
+        open_motion_program_file filename, FALSE;
         ErrWrite\I,"Motion Program Start Program","Motion Program Start Program timestamp: "+motion_program_state{task_ind}.program_timestamp;
         IF task_ind=1 THEN
             motion_program_req_log_start;
@@ -111,7 +111,7 @@ MODULE motion_program_exec
         ENDIF
     ENDPROC
 
-    PROC open_motion_program_file(string filename)
+    PROC open_motion_program_file(string filename, bool preempt)
         VAR num ver;
         VAR tooldata mtool;
         VAR wobjdata mwobj;
@@ -157,24 +157,35 @@ MODULE motion_program_exec
             RAISE ERR_INVALID_MP_FILE;
         ENDIF
         
-        motion_program_state{task_ind}.program_seqno:=seqno;
-        motion_program_state{task_ind}.program_timestamp:=timestamp;
-        IF task_ind=1 THEN
-            SetAO motion_program_seqno,seqno;
+        IF NOT preempt THEN
+            motion_program_state{task_ind}.program_seqno:=seqno;
+            motion_program_state{task_ind}.program_timestamp:=timestamp;
+            IF task_ind=1 THEN
+                SetAO motion_program_seqno,seqno;
+            ENDIF
         ENDIF
 
         ErrWrite\I,"Motion Program Opened","Motion Program Opened with timestamp: "+timestamp;
-
-        motion_program_tool:=mtool;
-        motion_program_wobj:=mwobj;
-        motion_program_gripload:=mgripload;
-
-        SetSysData motion_program_tool;
-        SetSysData motion_program_wobj;
-        GripLoad motion_program_gripload;
-
-        IF motion_program_have_egm THEN
-            motion_program_egm_enable;
+        
+        IF NOT preempt THEN
+            motion_program_tool:=mtool;
+            motion_program_wobj:=mwobj;
+            motion_program_gripload:=mgripload;
+    
+            SetSysData motion_program_tool;
+            SetSysData motion_program_wobj;
+            GripLoad motion_program_gripload;
+    
+            IF motion_program_have_egm THEN
+                motion_program_egm_enable;
+            ELSE
+                IF NOT try_motion_program_read_num(egm_cmd) THEN
+                    RAISE ERR_INVALID_MP_FILE;
+                ENDIF
+                IF egm_cmd<>0 THEN
+                    RAISE ERR_INVALID_MP_FILE;
+                ENDIF
+            ENDIF
         ELSE
             IF NOT try_motion_program_read_num(egm_cmd) THEN
                 RAISE ERR_INVALID_MP_FILE;
@@ -183,6 +194,7 @@ MODULE motion_program_exec
                 RAISE ERR_INVALID_MP_FILE;
             ENDIF
         ENDIF
+        
     ENDPROC
 
     PROC close_motion_program_file()
@@ -668,17 +680,21 @@ MODULE motion_program_exec
         IF motion_program_preempt>motion_program_state{task_ind}.preempt_current THEN
             IF motion_max_cmd_ind=motion_program_preempt_cmd_num THEN
                 IF task_ind=1 THEN
-                    filename:=StrFormat("motion_program_p{1}.bin"\Arg1:=NumToStr(motion_program_preempt,0));
+                    filename:=StrFormat("motion_program_p{1}"\Arg1:=NumToStr(motion_program_preempt,0));
                 ELSE
-                    filename:=StrFormat("motion_program2_p{1}.bin"\Arg1:=NumToStr(motion_program_preempt,0));
+                    filename:=StrFormat("motion_program2_p{1}"\Arg1:=NumToStr(motion_program_preempt,0));
                 ENDIF
+                IF MOTION_PROGRAM_DRIVER_MODE = 1 THEN
+                    filename:= filename + "---seqno-" + NumToStr(motion_program_state{task_ind}.program_seqno,0);
+                ENDIF
+                filename:=filename + ".bin";
                 ErrWrite\I,"Preempting Motion Program","Preempting motion program with file "+filename;
                 IF task_ind=1 THEN
                     SetAO motion_program_preempt_current,motion_program_preempt;
                 ENDIF
                 motion_program_state{task_ind}.preempt_current:=motion_program_preempt;
                 close_motion_program_file;
-                open_motion_program_file(filename);
+                open_motion_program_file filename, TRUE;
             ELSEIF motion_max_cmd_ind>motion_program_preempt_cmd_num THEN
                 ErrWrite "Missed Preempt","Preempt command number missed";
                 RAISE ERR_MISSED_PREEMPT;
