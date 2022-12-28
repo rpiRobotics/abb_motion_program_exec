@@ -1,5 +1,8 @@
 # abb_motion_program_exec
 
+[![Python](https://img.shields.io/badge/python-3.6+-blue.svg)](https://github.com/rpiRobotics/abb_motion_program_exec)
+![PyPI](https://img.shields.io/pypi/v/abb-motion-program-exec)
+
 `abb_motion_program_exec` provides a simple way to download and run a sequence of
 `MoveAbsJ`, `MoveJ`, `MoveL`, `MoveC`, and `WaitTime` commands on
 an ABB IRC5 robot controller. This program is intended to be a proof of
