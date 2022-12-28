@@ -6,6 +6,8 @@ an ABB IRC5 robot controller. This program is intended to be a proof of
 concept for more sophisticated controller interfaces. Multi-move control of two robots is also
 supported. Externally Guided Motion (EGM) is also supported for joint target, pose target, and path correction modes.
 
+Documentation can be found at: https://abb-motion-program-exec.readthedocs.io/
+
 ## Installation
 
 Begin by installing the software for the robot controller. This software can be
