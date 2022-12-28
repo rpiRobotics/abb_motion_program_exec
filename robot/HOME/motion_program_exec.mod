@@ -1,5 +1,7 @@
 MODULE motion_program_exec
 
+    CONST num MOTION_PROGRAM_DRIVER_MODE:=0;
+    
     CONST num MOTION_PROGRAM_CMD_NOOP:=0;
     CONST num MOTION_PROGRAM_CMD_MOVEABSJ:=1;
     CONST num MOTION_PROGRAM_CMD_MOVEJ:=2;
@@ -40,11 +42,19 @@ MODULE motion_program_exec
     LOCAL VAR string motion_program_filename;
 
     VAR bool motion_program_have_egm:=TRUE;
+    
+    LOCAL VAR num motion_program_driver_seqno;
+    
+    LOCAL VAR intnum motion_program_driver_abort_into;
 
     PROC motion_program_main()
-        motion_program_init;
-        run_motion_program_file(motion_program_filename);
-        motion_program_fini;
+        IF MOTION_PROGRAM_DRIVER_MODE = 0 THEN
+            motion_program_init;
+            run_motion_program_file(motion_program_filename);
+            motion_program_fini;
+        ELSE
+            motion_program_main_driver_mode;
+        ENDIF
     ENDPROC
 
     PROC motion_program_init()
@@ -74,6 +84,7 @@ MODULE motion_program_exec
         motion_program_state{task_ind}.preempt_current:=0;
         motion_current_cmd_ind:=0;
         motion_max_cmd_ind:=0;
+        IDelete motion_trigg_intno;
         CONNECT motion_trigg_intno WITH motion_trigg_trap;
         TriggInt motion_trigg_data,0.001,\Start,motion_trigg_intno;
         RMQFindSlot logger_rmq,"RMQ_logger";
@@ -88,7 +99,7 @@ MODULE motion_program_exec
     PROC run_motion_program_file(string filename)
         ErrWrite\I,"Motion Program Begin","Motion Program Begin";
         close_motion_program_file;
-        open_motion_program_file(filename);
+        open_motion_program_file filename, FALSE;
         ErrWrite\I,"Motion Program Start Program","Motion Program Start Program timestamp: "+motion_program_state{task_ind}.program_timestamp;
         IF task_ind=1 THEN
             motion_program_req_log_start;
@@ -100,7 +111,7 @@ MODULE motion_program_exec
         ENDIF
     ENDPROC
 
-    PROC open_motion_program_file(string filename)
+    PROC open_motion_program_file(string filename, bool preempt)
         VAR num ver;
         VAR tooldata mtool;
         VAR wobjdata mwobj;
@@ -146,24 +157,35 @@ MODULE motion_program_exec
             RAISE ERR_INVALID_MP_FILE;
         ENDIF
         
-        motion_program_state{task_ind}.program_seqno:=seqno;
-        motion_program_state{task_ind}.program_timestamp:=timestamp;
-        IF task_ind=1 THEN
-            SetAO motion_program_seqno,seqno;
+        IF NOT preempt THEN
+            motion_program_state{task_ind}.program_seqno:=seqno;
+            motion_program_state{task_ind}.program_timestamp:=timestamp;
+            IF task_ind=1 THEN
+                SetAO motion_program_seqno,seqno;
+            ENDIF
         ENDIF
 
         ErrWrite\I,"Motion Program Opened","Motion Program Opened with timestamp: "+timestamp;
-
-        motion_program_tool:=mtool;
-        motion_program_wobj:=mwobj;
-        motion_program_gripload:=mgripload;
-
-        SetSysData motion_program_tool;
-        SetSysData motion_program_wobj;
-        GripLoad motion_program_gripload;
-
-        IF motion_program_have_egm THEN
-            motion_program_egm_enable;
+        
+        IF NOT preempt THEN
+            motion_program_tool:=mtool;
+            motion_program_wobj:=mwobj;
+            motion_program_gripload:=mgripload;
+    
+            SetSysData motion_program_tool;
+            SetSysData motion_program_wobj;
+            GripLoad motion_program_gripload;
+    
+            IF motion_program_have_egm THEN
+                motion_program_egm_enable;
+            ELSE
+                IF NOT try_motion_program_read_num(egm_cmd) THEN
+                    RAISE ERR_INVALID_MP_FILE;
+                ENDIF
+                IF egm_cmd<>0 THEN
+                    RAISE ERR_INVALID_MP_FILE;
+                ENDIF
+            ENDIF
         ELSE
             IF NOT try_motion_program_read_num(egm_cmd) THEN
                 RAISE ERR_INVALID_MP_FILE;
@@ -172,9 +194,12 @@ MODULE motion_program_exec
                 RAISE ERR_INVALID_MP_FILE;
             ENDIF
         ENDIF
+        
     ENDPROC
 
     PROC close_motion_program_file()
+        VAR string filename;
+        filename:=motion_program_state{task_ind}.motion_program_filename;
         motion_program_state{task_ind}.motion_program_filename:="";
         Close motion_program_io_device;
     ERROR
@@ -636,13 +661,17 @@ MODULE motion_program_exec
     ENDFUNC
 
     PROC motion_program_req_log_start()
-        VAR string msg;
-        msg:=motion_program_state{task_ind}.program_timestamp;
+        VAR string msg{2};
+        msg{1}:=motion_program_state{task_ind}.program_timestamp;
+        msg{2}:=motion_program_state{task_ind}.program_timestamp;
+        IF MOTION_PROGRAM_DRIVER_MODE = 1 THEN
+            msg{2} := "motion_program---seqno-" + NumToStr(motion_program_state{task_ind}.program_seqno,0);
+        ENDIF
         RMQSendMessage logger_rmq,msg;
     ENDPROC
 
     PROC motion_program_req_log_end()
-        VAR string msg:="";
+        VAR string msg{2};
         RMQSendMessage logger_rmq,msg;
     ENDPROC
 
@@ -651,17 +680,21 @@ MODULE motion_program_exec
         IF motion_program_preempt>motion_program_state{task_ind}.preempt_current THEN
             IF motion_max_cmd_ind=motion_program_preempt_cmd_num THEN
                 IF task_ind=1 THEN
-                    filename:=StrFormat("motion_program_p{1}.bin"\Arg1:=NumToStr(motion_program_preempt,0));
+                    filename:=StrFormat("motion_program_p{1}"\Arg1:=NumToStr(motion_program_preempt,0));
                 ELSE
-                    filename:=StrFormat("motion_program2_p{1}.bin"\Arg1:=NumToStr(motion_program_preempt,0));
+                    filename:=StrFormat("motion_program2_p{1}"\Arg1:=NumToStr(motion_program_preempt,0));
                 ENDIF
+                IF MOTION_PROGRAM_DRIVER_MODE = 1 THEN
+                    filename:= filename + "---seqno-" + NumToStr(motion_program_state{task_ind}.program_seqno,0);
+                ENDIF
+                filename:=filename + ".bin";
                 ErrWrite\I,"Preempting Motion Program","Preempting motion program with file "+filename;
                 IF task_ind=1 THEN
                     SetAO motion_program_preempt_current,motion_program_preempt;
                 ENDIF
                 motion_program_state{task_ind}.preempt_current:=motion_program_preempt;
                 close_motion_program_file;
-                open_motion_program_file(filename);
+                open_motion_program_file filename, TRUE;
             ELSEIF motion_max_cmd_ind>motion_program_preempt_cmd_num THEN
                 ErrWrite "Missed Preempt","Preempt command number missed";
                 RAISE ERR_MISSED_PREEMPT;
@@ -702,4 +735,50 @@ MODULE motion_program_exec
         ENDIF
     ENDPROC
 
+    PROC motion_program_main_driver_mode()
+        IDelete motion_program_driver_abort_into;        
+        CONNECT motion_program_driver_abort_into WITH motion_program_abort_driver_mode;
+        motion_program_driver_seqno:=-1;
+        motion_program_init;
+        motion_program_egm_start_stream;
+        WaitUntil motion_program_seqno_command > motion_program_seqno_started AND motion_program_driver_abort = 0;
+        SetAO motion_program_seqno_started, motion_program_seqno_command;
+        ISignalDO motion_program_driver_abort, 1, motion_program_driver_abort_into;
+        motion_program_driver_seqno:=motion_program_seqno_command;
+        ErrWrite\I,"Motion Program Driver Begin Program",StrFormat("Motion Program Driver Begin Program seqno "\Arg1:=NumToStr(motion_program_driver_seqno,0));
+        IF task_ind=1 THEN
+            motion_program_filename:="motion_program---seqno-" + NumToStr(motion_program_driver_seqno,0) + ".bin";
+        ELSEIF task_ind=2 THEN
+            motion_program_filename:="motion_program2---seqno-" + NumToStr(motion_program_driver_seqno,0) +  ".bin";
+        ENDIF
+        run_motion_program_file(motion_program_filename);
+        !motion_program_reset_handler;
+        motion_program_fini_driver_mode;
+        ExitCycle;
+    ERROR
+        IF motion_program_driver_seqno > motion_program_seqno_complete THEN
+            SetAO motion_program_seqno_complete, motion_program_driver_seqno;
+            ErrWrite\I,"Motion Program Driver Program Complete","Motion Program Complete";
+        ENDIF
+        RAISE;
+    ENDPROC
+    
+    PROC motion_program_fini_driver_mode()
+        IF MOTION_PROGRAM_DRIVER_MODE = 1 THEN
+            IF motion_program_driver_seqno > motion_program_seqno_complete THEN
+                SetAO motion_program_seqno_complete, motion_program_driver_seqno;
+                ErrWrite\I,"Motion Program Driver Program Complete","Motion Program Complete";
+            ENDIF
+        ENDIF
+    ENDPROC
+    
+    TRAP motion_program_abort_driver_mode
+        motion_program_fini_driver_mode;
+        ExitCycle;
+    ENDTRAP
+    
+    PROC motion_program_stop_handler()
+        
+    ENDPROC
+    
 ENDMODULE

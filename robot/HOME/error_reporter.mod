@@ -19,7 +19,10 @@ MODULE error_reporter
         VAR string titlestr;
         VAR string string1;
         VAR string string2;
-        
+        VAR num seqno;
+        VAR string err_filename;
+        VAR iodev err_file;
+                
         GetTrapData err_data;
         ReadErrData err_data, err_domain, err_number, err_type \Title:=titlestr \Str1:=string1 \Str2:=string2;
 
@@ -27,5 +30,21 @@ MODULE error_reporter
             \RL2:= "with error code " + NumToStr(err_domain*10000+err_number,0)
             \RL3:= "error title '" + titlestr + "'"
             \RL4:= "error string '" + string1 + "'";
+        
+        seqno := motion_program_seqno_started;
+        IF seqno > 0 THEN
+            err_filename := "motion_program_err---seqno-" + NumToStr(seqno,0) + ".json";
+            Open "RAMDISK:"\File:=err_filename,err_file\Write;
+            Write err_file, "{""seqno"": " + NumToStr(seqno,0)\NoNewLine;
+            Write err_file, ",""error_domain"": " + NumToStr(err_domain,0)\NoNewLine;
+            Write err_file, ",""error_number"": " + NumToStr(err_number,0)\NoNewLine;
+            Write err_file, ",""error_title"": """ + titlestr + """"\NoNewLine; 
+            Write err_file, ",""error_string"": """ + string1 + """"\NoNewLine; 
+            Write err_file, ",""error_string2"": """ + string2 + """"\NoNewLine; 
+            Write err_file, "}";
+            Close err_file;
+        ENDIF
+            
+        
     ENDTRAP
 ENDMODULE

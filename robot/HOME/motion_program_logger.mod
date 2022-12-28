@@ -6,6 +6,8 @@ MODULE motion_program_logger
     
     LOCAL VAR intnum rmqint_open;
     LOCAL VAR string rmq_timestamp;
+    LOCAL VAR string rmq_filename;
+    LOCAL VAR string rmq_req{2};
     
     LOCAL VAR intnum logger_err_interrupt;
     LOCAL VAR num robot_count:=0;
@@ -22,7 +24,7 @@ MODULE motion_program_logger
         VAR string mechunit_name:="";
                 
         CONNECT rmqint_open WITH rmq_message_string;
-        IRMQMessage rmq_timestamp, rmqint_open;
+        IRMQMessage rmq_req, rmqint_open;
         
         CONNECT logger_err_interrupt WITH err_handler;
         IError COMMON_ERR, TYPE_ERR, logger_err_interrupt;
@@ -95,7 +97,7 @@ MODULE motion_program_logger
         
         header_str_len:=StrLen(header_str);
         rmq_timestamp_len:=StrLen(rmq_timestamp);
-        log_filename := "log-" + rmq_timestamp + ".bin";
+        log_filename := "log-" + rmq_filename + ".bin";
         
         pack_num motion_program_file_version, header_bytes;
         pack_num rmq_timestamp_len, header_bytes;
@@ -132,7 +134,9 @@ MODULE motion_program_logger
         VAR rmqmessage rmqmsg;
         IDisable;
         RMQGetMessage rmqmsg;
-        RMQGetMsgData rmqmsg, rmq_timestamp;
+        RMQGetMsgData rmqmsg, rmq_req;
+        rmq_timestamp:=rmq_req{1};
+        rmq_filename:=rmq_req{2};
         IF log_file_open THEN
             motion_program_log_close;
         ENDIF
