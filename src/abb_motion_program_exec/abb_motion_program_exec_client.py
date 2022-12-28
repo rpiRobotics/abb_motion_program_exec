@@ -15,7 +15,7 @@
 
 
 import re
-from typing import Callable, NamedTuple, Any, List
+from typing import Callable, NamedTuple, Any, List, Union, TYPE_CHECKING
 import struct
 import numpy as np
 import io
@@ -68,6 +68,26 @@ wobj0 = wobjdata(False, True, "", pose([0,0,0],[1,0,0,0]), pose([0,0,0],[1,0,0,0
 load0 = loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0)
 
 class MotionProgram:
+    """
+    Class representing a Motion Program. A Motion Program is a sequences of robot motion primitives that
+    can be executed by the interpreter program running on the robot. This program must be installed before the
+    motion program can be executed.
+
+    Motion commands are appended to the program by calling one of the motion program command functions. Currently 
+    supported commands are ``MoveAbsJ``, ``MoveJ``, ``MoveL``, ``MoveC``, ``WaitTime``, ``CirPathMode``,
+    ``SyncMoveOn``, ``SyncMoveOff``, ``EGMRunJoint``, ``EGMRunPose``, ``EGMMoveL``, and ``EGMMoveC``
+        
+    :param first_cmd_num: The first command number for the motion program. Defaults to 1
+    :param tooldata: The tooldata to use for the motion program. Defaults to tool0
+    :param wobj: The wobjdata to use for the motion program. Defaults to wobj0
+    :param timestamp: The timestamp for the motion program. Defaults to current clock time
+    :param egm_config: The EGM configuration for the motion program. Can be used to activate feedback streaming,
+                       joint control, pose control, or path correction
+    :param seqno: The sequence number of the command. Used by drivers commanding the robot
+    :param gripload: The loaddata for the payload currently held by the robot
+
+    """
+
 
     MoveAbsJ = command_append_method(commands.MoveAbsJCommand)
     MoveJ = command_append_method(commands.MoveJCommand)
@@ -83,7 +103,9 @@ class MotionProgram:
     EGMMoveL = command_append_method(egm_commands.EGMMoveLCommand)
     EGMMoveC = command_append_method(egm_commands.EGMMoveCCommand)
 
-    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, wobj: wobjdata = None, timestamp: str = None, egm_config = None, seqno = 0, gripload: loaddata = None):
+    def __init__(self,first_cmd_num: int=1, tool: tooldata = None, wobj: wobjdata = None, timestamp: str = None, 
+        egm_config: Union[EGMStreamConfig,EGMJointTargetConfig,EGMPoseTargetConfig,EGMPathCorrectionConfig] = None, 
+        seqno: int = 0, gripload: loaddata = None):
 
         self._commands = []
 
@@ -112,6 +134,13 @@ class MotionProgram:
         self._commands.append(cmd)
 
     def write_program(self, f: io.IOBase, seqno = None):
+        """
+        Write binary motion program to binary file. The robot controller program will interpret the binary
+        file to execute the motion program.
+
+        :param f: The target file to write program
+        :param seqno: The seqno of the program. Used by drivers, can be ignored for normal use
+        """
         # Version number
         f.write(util.num_to_bin(MOTION_PROGRAM_FILE_VERSION))
         
@@ -134,13 +163,25 @@ class MotionProgram:
 
             cmd.write_params(f)    
 
-    def get_program_bytes(self, seqno = None):
+    def get_program_bytes(self, seqno = None) -> bytes:
+        """
+        Return binary motion program
+
+        :param seqno: The seqno of the program. Used by drivers, can be ignored for normal use
+        """
         f = io.BytesIO()
         self.write_program(f, seqno)
         return f.getvalue()
 
     def write_program_rapid(self, f: io.TextIOBase, module_name="motion_program_exec_gen", sync_move=False):
-            
+        """
+        Write equivalent RAPID program of the motion program. Useful for debugging motion programs.
+
+        :param f: The target file to write text RAPID program
+        :param module_name: The name of the RAPID module to write
+        :param sync_move: Set to True if the program is being used with a MulitMove synchronous program
+        """
+
         ver = MOTION_PROGRAM_FILE_VERSION
         tooldata_str = self.tool.to_rapid()
         wobjdata_str = self.wobj.to_rapid()
@@ -170,23 +211,61 @@ class MotionProgram:
         print("    ENDPROC", file=f)
         print("ENDMODULE", file=f)
         
-    def get_program_rapid(self, module_name="motion_program_exec_gen", sync_move=False):
+    def get_program_rapid(self, module_name="motion_program_exec_gen", sync_move=False) -> str:
+        """
+        Returns equivalent RAPID program of the motion program. Useful for debugging motion programs.
+
+        :param module_name: The name of the RAPID module to write
+        :param sync_move: Set to True if the program is being used with a MulitMove synchronous program
+        """
         o = io.StringIO()
         self.write_program_rapid(o, module_name, sync_move)
         return o.getvalue()
 
-    def get_timestamp(self):
+    def get_timestamp(self) -> str:
+        """Get the timestamp of the motion program"""
         return self._timestamp
 
-
 class MotionProgramExecClient:
+    """
+    Client to execute motion programs an ABB IRC5 controller using Robot Web Services (RWS)
+
+    :ivar abb_client: Instance of ``abb_robot_client.rws.RWS`` used execute commands
+
+    :param base_url: Base URL of the robot. For Robot Studio instances, this should be http://127.0.0.1:80,
+                     the default value. For a real robot, 127.0.0.1 should be replaced with the IP address
+                     of the robot controller. The WAN port ethernet must be used, not the maintenance port.
+    :param username: The HTTP username for the robot. Defaults to 'Default User'
+    :param password: The HTTP password for the robot. Defaults to 'robotics'    
+    """
     def __init__(self, base_url='http://127.0.0.1:80', username='Default User', password='robotics', abb_client = None):
         if abb_client is None:
-            self.abb_client = RWS(base_url, username, password)
+            self.abb_client: RWS = RWS(base_url, username, password)
         else:
-            self.abb_client = abb_client
+            self.abb_client: RWS = abb_client
 
-    def execute_motion_program(self, motion_program: MotionProgram, task="T_ROB1", wait : bool = True, seqno: int = None):
+    def execute_motion_program(self, motion_program: MotionProgram, task: str="T_ROB1", 
+        wait : bool = True, seqno: int = None) -> Union[MotionProgramResultLog,int]:
+        """
+        Execute a motion program. If ``wait`` is True, executes the following steps:
+
+        #. Convert `motion_program` to bytes
+        #. Upload binary motion program to controller as a temporary file on the controller ramdisk
+        #. Check the last sequence number of the controller event log before starting the program
+        #. Start executing the motion program by starting the RAPID task on the controller
+        #. Wait for the RAPID task to complete
+        #. Read the event log to check for errors, and find the filename of the saved joint log
+        #. Read the joint log file from the controller
+        #. Parse and return the joint log
+
+        If `wait` is set to False, the process stops after retrieving the most recent sequence number and returns
+        that value.
+
+        :param motion_program: The motion program to execute
+        :param task: The RAPID Task to use to execute the program. Defaults to ``T_ROB1``
+        :param wait: If True, wait for the program to complete. Else, return once the program has been started.
+        :param seqno: Optional motion program seqno override
+        """
         filename, b = _get_motion_program_file(self.abb_client.get_ramdisk_path(), motion_program, task, seqno = seqno)
         def _upload():            
             self.abb_client.upload_file(filename, b)
@@ -197,25 +276,59 @@ class MotionProgramExecClient:
         self.wait_motion_program_complete()
         return self.read_motion_program_result_log(prev_seqnum)
 
-    def preempt_motion_program(self, motion_program: MotionProgram, task="T_ROB1", preempt_number: int = 1, 
+    def preempt_motion_program(self, motion_program: MotionProgram, task: str="T_ROB1", preempt_number: int = 1, 
         preempt_cmdnum : int = -1, seqno: int = None):
+        """
+        Preempt a running motion program. Preempting works by downloading a replacement motion program file
+        to the controller, and then switching to the new file at a specified command number. Multiple preemptions
+        can occur on the same motion program, as long as each preempting has an increasing crossover command number.
+
+        Preempting can only occur after the `currently queued` command. The ABB controller will read ahead up to motion
+        three motion commands. This means that there may be some delay before the preemption can occur.
+
+        :param motion_program: The new motion program. The ``first-cmd_num`` parameter of the motion program must be 
+                               specified to be one greater than the ``preempt_cmdnum``.
+        :param task: The task to preempt
+        :param preempt_number: The number of the preemption. The first preemption should set this to 1
+        :param preempt_cmdnum: The command number to switch to the new motion program. Must be greater than the currently
+                         queued command number.
+        :param seqno: Optional override of the motion program seqno
+        """
+
         filename, b = _get_motion_program_file(self.abb_client.get_ramdisk_path(), motion_program, task, preempt_number, seqno = seqno)
         self.abb_client.upload_file(filename, b)
         self.abb_client.set_analog_io("motion_program_preempt_cmd_num", preempt_cmdnum)
         self.abb_client.set_analog_io("motion_program_preempt", preempt_number)
 
-    def get_current_cmdnum(self):
+    def get_current_cmdnum(self) -> int:
+        """Get the currently executing ``cmdnum``"""
         return self.abb_client.get_analog_io("motion_program_current_cmd_num")
 
-    def get_queued_cmdnum(self):
+    def get_queued_cmdnum(self) -> int:
+        """
+        Get the currently queued ``cmdnum``. Motion commands are queued by the controller before executing, so the
+        controller may queue up to three commands before executing them.
+        """
         return self.abb_client.get_analog_io("motion_program_queued_cmd_num")
 
-    def get_current_preempt_number(self):
+    def get_current_preempt_number(self) -> int:
+        """Get the current preempt_number"""
         return self.abb_client.get_analog_io("motion_program_preempt_current") 
         
 
-    def execute_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks=None, wait : bool = True,
-        seqno: int = None):
+    def execute_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks: List[str]=None, 
+        wait : bool = True, seqno: int = None):
+        """
+        Execute a motion program on a MultiMove system with multiple robots. Same as 
+        :meth:`MotionProgramExecClient.execute_motion_program()` but takes lists of motion programs and tasks.
+
+        Motion programs should use ``SyncMoveOn()`` command when using MultiMove.
+
+        :param motion_programs: A list of motion programs. Number of motion programs must correspond to number of robots.
+        :param tasks: A list of RAPID Tasks. Defaults to T_ROBn, where n is the default task number for the robots.
+        :param wait: If True, wait for the program to complete. Else, return once the program has been started.
+        :param seqno: Optional motion program seqno override        
+        """
 
         if tasks is None:
             tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
@@ -246,8 +359,20 @@ class MotionProgramExecClient:
         self.wait_motion_program_complete()
         return self.read_motion_program_result_log(prev_seqnum)
 
-    def preempt_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks=None, 
+    def preempt_multimove_motion_program(self, motion_programs: List[MotionProgram], tasks: List[str]=None, 
         preempt_number: int = 1, preempt_cmdnum : int = -1, seqno: int = None):
+        """
+        Preempt a motion program on a MultiMove system with multiple robots. Same as 
+        :meth:`MotionProgramExecClient.preempt_motion_program()` but takes lists of motion programs and tasks.
+        
+        :param motion_program: List of new motion programs. The ``first-cmd_num`` parameter of the motion program must be 
+                               specified to be one greater than the ``preempt_cmdnum``.
+        :param task: The tasks to preempt
+        :param preempt_number: The number of the preemption. The first preemption should set this to 1
+        :param preempt_cmdnum: The command number to switch to the new motion program. Must be greater than the currently
+                         queued command number.
+        :param seqno: Optional override of the motion program seqno
+        """
         if tasks is None:
             tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
 
@@ -288,11 +413,13 @@ class MotionProgramExecClient:
 
         return prev_seqnum
 
-    def is_motion_program_running(self):
+    def is_motion_program_running(self) -> bool:
+        """Returns True if motion program is running"""
         exec_state = self.abb_client.get_execution_state()
         return exec_state.ctrlexecstate == "running"
 
     def wait_motion_program_complete(self):
+        """Wait for motion program to complete"""
         
         while True:
             exec_state = self.abb_client.get_execution_state()
@@ -300,7 +427,15 @@ class MotionProgramExecClient:
                 break
             time.sleep(0.05)
 
-    def read_motion_program_result_log(self, prev_seqnum):
+    def read_motion_program_result_log(self, prev_seqnum: int) -> MotionProgramResultLog:
+        """
+        Read a motion program result log after motion program completes. This function is called by
+        :meth:`MotionProgramExecClient.execute_motion_program()` if ``wait`` is True. If ``wait`` is False,
+        it can be called directly.
+
+        :param prev_seqnum: The previous seqnum, returned by ``execute_motion_program()`` if ``wait`` is False.
+        :return: The result log
+        """
 
         log_after_raw = self.abb_client.read_event_log()
         log_after = []
@@ -353,16 +488,21 @@ class MotionProgramExecClient:
         return _unpack_motion_program_result_log(log_contents)
 
     def stop_motion_program(self):
+        """Stop a motion program. Motion programs will normally stop when complete, so this is not normally necessary"""
         self.abb_client.stop()
 
     def stop_egm(self):
+        """Stop a long running EGM command. This will cause the program to complete normally"""
         self.abb_client.set_digital_io("motion_program_stop_egm", 1)
 
     def enable_motion_logging(self):
+        """Enable motion logging"""
         self.abb_client.set_digital_io("motion_program_log_motion", 1)
 
     def disable_motion_logging(self):
+        """Disable motion logging"""
         self.abb_client.set_digital_io("motion_program_log_motion", 0)
 
-    def get_motion_logging_enabled(self):
+    def get_motion_logging_enabled(self) -> bool:
+        """Return if motion logging is enabled"""
         return self.abb_client.get_digital_io("motion_program_log_motion") > 0
