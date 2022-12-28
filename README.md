@@ -14,10 +14,10 @@ or by using a RobotWare Add-In. The RobotWare Add-In is cleaner and probably mor
 but is also less flexible and requires using the Installation Manager which can be confusing. If
 you aren't sure which to use, try using the manual installation first.
 
-* See [robot_setup_manual.md](doc/robot_setup_manual.md) for manual setup instructions.
-* See [robot_setup_robotware_addin.md](doc/robot_setup_robotware_addin.md) for RobotWare Add-In 
+* See [robot_setup_manual.md](docs/robot_setup_manual.md) for manual setup instructions.
+* See [robot_setup_robotware_addin.md](docs/robot_setup_robotware_addin.md) for RobotWare Add-In 
   setup instructions
-* See [robot_multimove_setup_manual.md](doc/robot_multimove_setup_manual.md) for ABB Multi-Move
+* See [robot_multimove_setup_manual.md](docs/robot_multimove_setup_manual.md) for ABB Multi-Move
   setup to control two robots. See later sections of this doc for more information on Multi-Move.
 
 This contains the robot-side code, that reads
@@ -192,7 +192,7 @@ pip install -e .
 
 ## Externally Guided Motion (EGM)
 
-See [egm.md](doc/egm.md) for instructions on using EGM.
+See [egm.md](docs/egm.md) for instructions on using EGM.
 
 ## Example
 
@@ -269,7 +269,7 @@ plt.show()
 ## Multi-Move Robot Example
 
 Two robots can be controlled using ABB Multi-Move. See 
-[robot_multimove_setup_manual.md](doc/robot_multimove_setup_manual.md) for setup instructions.
+[robot_multimove_setup_manual.md](docs/robot_multimove_setup_manual.md) for setup instructions.
 
 They must have exactly the same number of motion commands. The commands
 are passed with the `\ID` parameter corresponding to the command number. `SyncMoveOn` is activated
