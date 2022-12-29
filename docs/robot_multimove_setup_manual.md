@@ -106,8 +106,6 @@ RobotStudio will work for a minute or two to complete creation of the controller
 
 ## 5. Install RAPID Software
 
-![](figures/multimove/robotstudio_multimove_pstart.png)
-
 Next, copy over the RAPID files to the controller "HOME" directory. For the virtual controller,
 right click on "HOME" in the controller tree. (This is the same controller that options were
 changed on previously.) Click "Open Folder".
@@ -130,7 +128,7 @@ and OK to acknowledge restart is required. Repeat for `EIO.cfg` in the same dire
 the new software. Select "OK" to confirm RAPID reset.
 
 The installation should now be complete. The following should match, and can be checked against 
-your system to verify installation:
+your system to verify installation. Newer versions may add more signals:
 
 ![](figures/multimove/robotstudio_multimove_installed1.png)
 

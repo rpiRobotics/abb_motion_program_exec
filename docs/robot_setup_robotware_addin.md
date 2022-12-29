@@ -40,8 +40,6 @@ Select the `.rmf` file above using the file browser.
 
 The new add-in should now be visible under the Add-Ins tree.
 
-![](figures\robotstudio_addin_mp_installed.png)
-
 RobotStudio is now ready to create a solution with the add-ins.
 
 ## 2. Create Solution and Install Robot

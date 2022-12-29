@@ -91,7 +91,8 @@ safe to load these different configuration files after the normal files.)
 ![](figures/robotstudio_restart.png)
 
 The installation should now be complete. The following should match, and can be checked against 
-your system to verify installation (if using EGM, there will be additional files and signals):
+your system to verify installation (if using EGM, there will be additional files and signals. Newer versions may add 
+more signals):
 
 ![](figures/robotstudio_addin_installed1.png)
 

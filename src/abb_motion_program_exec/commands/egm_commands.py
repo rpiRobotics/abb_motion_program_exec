@@ -1,3 +1,17 @@
+# Copyright 2022 Wason Technology LLC, Rensselaer Polytechnic Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from .command_base import CommandBase
 from dataclasses import dataclass
 from .rapid_types import *
@@ -92,48 +106,90 @@ class EGMMoveCCommand(CommandBase):
 
 
 class egm_minmax(NamedTuple):
+    """egm_minmax structure"""
     min: float
+    """min value"""
     max: float
+    """max value"""
 
 def _egm_minmax_to_bin(e: egm_minmax):
     return util.num_to_bin(e.min) + util.num_to_bin(e.max)
 
 class EGMStreamConfig(NamedTuple):
+    """
+    Configure EGM to stream feedback data only
+    """
     pass
 
 class EGMJointTargetConfig(NamedTuple):
+    """
+    Activate EGM for joint target control
+    """
     J1: egm_minmax
+    """J1 convergence criteria"""
     J2: egm_minmax
+    """J2 convergence criteria"""
     J3: egm_minmax
+    """J3 convergence criteria"""
     J4: egm_minmax
+    """J4 convergence criteria"""
     J5: egm_minmax
+    """J5 convergence criteria"""
     J6: egm_minmax
+    """J6 convergence criteria"""
     max_pos_deviation: float
+    """Max joint deviation in degrees"""
     max_speed_deviation: float
+    """Max joint speed deviation in degrees/second"""
 
 class egmframetype(IntEnum):
+    """Frame types for corrections and sensor measurements"""
     EGM_FRAME_BASE = 0
+    """Base frame"""
     EGM_FRAME_TOOL = 1
+    """Tool frame"""
     EGM_FRAME_WOBJ = 2
+    """Wobj frame"""
     EGM_FRAME_WORLD = 3
+    """World frame"""
     EGM_FRAME_JOINT = 4
+    """Joint frame"""
 
 class EGMPoseTargetConfig(NamedTuple):
+    """
+    Activate EGM for pose target control
+    """
     corr_frame: pose
+    """The correction frame"""
     corr_fr_type: egmframetype
+    """The correction frame type"""
     sensor_frame: pose
+    """The sensor frame"""
     sensor_fr_type: egmframetype
+    """The sensor frame type"""
     x: egm_minmax
+    """x convergence criteria"""
     y: egm_minmax
+    """y convergence criteria"""
     z: egm_minmax
+    """z convergence criteria"""
     rx: egm_minmax
+    """rx convergence criteria"""
     ry: egm_minmax
+    """ry convergence criteria"""
     rz: egm_minmax
+    """rz convergence criteria"""
     max_pos_deviation: float
+    """Max joint deviation in degrees"""
     max_speed_deviation: float
+    """Max joint speed deviation in degrees/second"""
 
 class EGMPathCorrectionConfig(NamedTuple):
+    """
+    Activate EGM for path correction (``EGMMoveL``, ``EGMMoveC``)
+    """
     sensor_frame: pose
+    """The sensor frame"""
 
 
 def _egm_joint_target_config_to_bin(c: EGMJointTargetConfig):
