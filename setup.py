@@ -16,7 +16,6 @@ setuptools.setup(
         'requests',
         'numpy',
         'abb-robot-client[aio]',
-        'dataclasses; python_version<"3.7"'
     ],
     long_description=long_description,
     long_description_content_type='text/markdown'
