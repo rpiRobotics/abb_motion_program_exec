@@ -7,6 +7,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setuptools.setup(
     name='abb_motion_program_exec',
+    python_requires='>=3.6',
     version='0.6.0',
     description='Python package to execute motion commands on ABB robots and log results',
     url='https://github.com/johnwason/abb_motion_program_exec',
@@ -16,6 +17,7 @@ setuptools.setup(
         'requests',
         'numpy',
         'abb-robot-client[aio]',
+        "dataclasses; python_version<'3.7'"
     ],
     long_description=long_description,
     long_description_content_type='text/markdown'

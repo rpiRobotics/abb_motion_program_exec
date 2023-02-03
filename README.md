@@ -43,6 +43,15 @@ more than one controller is started, TCP port 80 will already be in use and can 
 behavior. Restart the computer if connections cannot be made from Python to the controller. Multiple
 real robots can be used concurrently since they will each have a unique IP address to bind port 80.
 
+### Python 3.6 Linux Install (Ubuntu Bionic)
+
+Older versions of Python are not supported by the currently available protobuf package. Use the apt version instead.
+
+```
+sudo apt install python3-virtualenv python3-protobuf python3-numpy python3-wheel python3-setuptools
+python3 -m pip install --user abb-motion-program-exec
+```
+
 ## Usage
 
 Once the `abb_motion_program_exec.mod` has been loaded on the controller,
