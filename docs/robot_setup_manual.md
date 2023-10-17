@@ -1,11 +1,8 @@
 # ABB Motion Program Exec Manual Robot Setup
 
 ABB Motion Program Exec requires software to be installed on the robot. This software can be
-installed manually by copying files to the robot controller and importing configuration files,
-or by using a RobotWare Add-In. The RobotWare Add-In is cleaner and probably more reliable,
-but is also less flexible and requires using the Installation Manager which can be confusing.
-This documents covers manually installing the software on a virtual controller in Robot Studio. See
-robot_setup_robotware_addin.md for manual setup instructions.
+installed manually by copying files to the robot controller and importing configuration files.
+This documents covers manually installing the software on a virtual controller in Robot Studio.
 
 ## Step 1: Install RobotWare 6.14
 

@@ -6,4 +6,3 @@ Robot Setup
 
    robot_setup_manual
    robot_multimove_setup_manual
-   robot_setup_robotware_addin
