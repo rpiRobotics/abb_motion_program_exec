@@ -1,0 +1,12 @@
+sphinx_autodoc_typehints
+recommonmark
+setuptools
+requests
+numpy
+protobuf
+websocket-client
+httpx
+websockets
+abb-robot-client
+sphinx-rtd-theme
+-e .

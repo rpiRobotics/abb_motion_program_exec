@@ -1,29 +1,23 @@
-# abb_motion_program_exec
-
-[![](https://img.shields.io/badge/python-3.6+-blue.svg)](https://github.com/rpiRobotics/abb_motion_program_exec)
-[![](https://img.shields.io/pypi/v/abb-motion-program-exec)](https://pypi.org/project/abb-motion-program-exec/)
-
+Readme
+======
 `abb_motion_program_exec` provides a simple way to download and run a sequence of
 `MoveAbsJ`, `MoveJ`, `MoveL`, `MoveC`, and `WaitTime` commands on
 an ABB IRC5 robot controller. This program is intended to be a proof of
 concept for more sophisticated controller interfaces. Multi-move control of two robots is also
 supported. Externally Guided Motion (EGM) is also supported for joint target, pose target, and path correction modes.
 
-Documentation can be found at: https://abb-motion-program-exec.readthedocs.io/
-
 ## Installation
 
-`abb-motion-program-exec` is avaliable on PyPi.
-
-```
-pip install abb-motion-program-exec
-```
-
 Begin by installing the software for the robot controller. This software can be
-installed manually by copying files to the robot controller and importing configuration files.
+installed manually by copying files to the robot controller and importing configuration files,
+or by using a RobotWare Add-In. The RobotWare Add-In is cleaner and probably more reliable,
+but is also less flexible and requires using the Installation Manager which can be confusing. If
+you aren't sure which to use, try using the manual installation first.
 
-* See [robot_setup_manual.md](docs/robot_setup_manual.md) for setup instructions.
-* See [robot_multimove_setup_manual.md](docs/robot_multimove_setup_manual.md) for ABB Multi-Move
+* See [robot_setup_manual.md](robot_setup_manual.md) for manual setup instructions.
+* See [robot_setup_robotware_addin.md](robot_setup_robotware_addin.md) for RobotWare Add-In 
+  setup instructions
+* See [robot_multimove_setup_manual.md](robot_multimove_setup_manual.md) for ABB Multi-Move
   setup to control two robots. See later sections of this doc for more information on Multi-Move.
 
 This contains the robot-side code, that reads
@@ -37,15 +31,6 @@ the controller using TCP port 80 on the local computer to accept REST commands f
 more than one controller is started, TCP port 80 will already be in use and can cause unpredictable
 behavior. Restart the computer if connections cannot be made from Python to the controller. Multiple
 real robots can be used concurrently since they will each have a unique IP address to bind port 80.
-
-### Python 3.6 Linux Install (Ubuntu Bionic)
-
-Older versions of Python are not supported by the currently available protobuf package. Use the apt version instead.
-
-```
-sudo apt install python3-virtualenv python3-protobuf python3-numpy python3-wheel python3-setuptools
-python3 -m pip install --user abb-motion-program-exec
-```
 
 ## Usage
 
@@ -207,7 +192,7 @@ pip install -e .
 
 ## Externally Guided Motion (EGM)
 
-See [egm.md](docs/egm.md) for instructions on using EGM.
+See [egm.md](egm.md) for instructions on using EGM.
 
 ## Example
 
@@ -256,15 +241,11 @@ mp.MoveJ(r3,abb.v5000,abb.fine)
 mp.MoveC(r4,r5,abb.v200,abb.z10)
 mp.MoveC(r4,r3,abb.v50,abb.fine)
 
-# Print out RAPID module of motion program for debugging
 print(mp.get_program_rapid())
 
-# Execute the motion program on the robot
-# Change base_url to the robot IP address
 client = abb.MotionProgramExecClient(base_url="http://127.0.0.1:80")
 log_results = client.execute_motion_program(mp)
 
-# log_results.data is a numpy array
 import matplotlib.pyplot as plt
 fig, ax1 = plt.subplots()
 lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:])
@@ -284,7 +265,7 @@ plt.show()
 ## Multi-Move Robot Example
 
 Two robots can be controlled using ABB Multi-Move. See 
-[robot_multimove_setup_manual.md](docs/robot_multimove_setup_manual.md) for setup instructions.
+[robot_multimove_setup_manual.md](robot_multimove_setup_manual.md) for setup instructions.
 
 They must have exactly the same number of motion commands. The commands
 are passed with the `\ID` parameter corresponding to the command number. `SyncMoveOn` is activated
@@ -294,7 +275,6 @@ of `MotionProgramExecClient` is used to send multi-move programs to the robot.
 ```python
 import abb_motion_program_exec as abb
 
-# Fill motion program for T_ROB1
 t1 = abb.robtarget([575,-200,1280],[0,-.707,0,.707],abb.confdata(0,0,-1,1),[0]*6)
 t2 = abb.robtarget([575,200,1480],[0,-.707,0,.707],abb.confdata(-1,-1,0,1),[0]*6)
 t3 = abb.robtarget([575,0,1280],[0,-.707,0,.707],abb.confdata(-1,-1,0,1),[0]*6)
@@ -312,8 +292,6 @@ mp.MoveL(t1,abb.v5000,abb.z50)
 mp.MoveJ(t2,abb.v500,abb.z200)
 mp.MoveL(t3,abb.v5000,abb.fine)
 
-# Fill motion program for T_ROB2. Both programs must have
-# same number of commands
 t1_2 = abb.robtarget([250,-200,1280],[.707,0,.707,0],abb.confdata(-1,-1,0,1),[0]*6)
 t2_2 = abb.robtarget([250,200,1480],[.707,0,.707,0],abb.confdata(0,0,-1,1),[0]*6)
 t3_2 = abb.robtarget([250,0,1280],[.707,0,.707,0],abb.confdata(0,0,0,1),[0]*6)
@@ -332,14 +310,10 @@ mp2.MoveL(t2_2,abb.v500,abb.z200)
 mp2.MoveL(t3_2,abb.v5000,abb.fine)
 
 
-# Execute the motion program on the robot
-# Change base_url to the robot IP address
 client = abb.MotionProgramExecClient(base_url="http://127.0.0.1:80")
 
-# Execute both motion programs simultaneously
 log_results = client.execute_multimove_motion_program([mp,mp2])
 
-# log_results.data is a numpy array
 import matplotlib.pyplot as plt
 fig, ax1 = plt.subplots()
 lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:8])
@@ -367,14 +341,11 @@ plt.show()
 Multi-Move example using relative work object:
 
 ```python
-# Multi-Move example using relative robot end effector poses
 
 import abb_motion_program_exec as abb
 
 
-# Fill motion program for T_ROB1
 
-# Hold constant relative position for this example
 t1 = abb.robtarget([0,0,-200],[1,0,0,0],abb.confdata(0,0,1,1),[0]*6)
 t2 = t1
 t3 = t1
@@ -391,8 +362,6 @@ mp.MoveJ(t1,abb.v1000,abb.fine)
 mp.MoveJ(t1,abb.v1000,abb.fine)
 mp.MoveL(t1,abb.v1000,abb.fine)
 
-# Fill motion program for T_ROB2. Both programs must have
-# same number of commands
 t1_2 = abb.robtarget([250,-200,1280],[.707,0,.707,0],abb.confdata(-1,-1,0,1),[0]*6)
 t2_2 = abb.robtarget([250,200,1480],[.707,0,.707,0],abb.confdata(0,0,-1,1),[0]*6)
 t3_2 = abb.robtarget([250,0,1280],[.707,0,.707,0],abb.confdata(0,0,0,1),[0]*6)
@@ -407,14 +376,10 @@ mp2.MoveL(t1_2,abb.v1000,abb.fine)
 mp2.MoveL(t2_2,abb.v5000,abb.fine)
 mp2.MoveL(t3_2,abb.v500,abb.fine)
 
-# Execute the motion program on the robot
-# Change base_url to the robot IP address
 client = abb.MotionProgramExecClient(base_url="http://127.0.0.1:80")
 
-# Execute both motion programs simultaneously
 log_results = client.execute_multimove_motion_program([mp,mp2])
 
-# log_results.data is a numpy array
 import matplotlib.pyplot as plt
 fig, ax1 = plt.subplots()
 lns1 = ax1.plot(log_results.data[:,0], log_results.data[:,2:8])
@@ -450,4 +415,4 @@ This work was supported in part by Subaward No. ARM-TEC-21-02-F19 from the Advan
 
 This work was supported in part by the New York State Empire State Development Division of Science, Technology and Innovation (NYSTAR) under contract C160142. 
 
-![](docs/figures/arm_logo.jpg) ![](docs/figures/nys_logo.jpg)
+![](figures//arm_logo.jpg) ![](figures//nys_logo.jpg)
