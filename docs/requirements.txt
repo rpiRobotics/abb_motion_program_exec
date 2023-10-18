@@ -8,4 +8,5 @@ websocket-client
 httpx
 websockets
 abb-robot-client
+sphinx-rtd-theme
 -e .

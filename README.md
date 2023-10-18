@@ -20,14 +20,9 @@ pip install abb-motion-program-exec
 ```
 
 Begin by installing the software for the robot controller. This software can be
-installed manually by copying files to the robot controller and importing configuration files,
-or by using a RobotWare Add-In. The RobotWare Add-In is cleaner and probably more reliable,
-but is also less flexible and requires using the Installation Manager which can be confusing. If
-you aren't sure which to use, try using the manual installation first.
+installed manually by copying files to the robot controller and importing configuration files.
 
-* See [robot_setup_manual.md](docs/robot_setup_manual.md) for manual setup instructions.
-* See [robot_setup_robotware_addin.md](docs/robot_setup_robotware_addin.md) for RobotWare Add-In 
-  setup instructions
+* See [robot_setup_manual.md](docs/robot_setup_manual.md) for setup instructions.
 * See [robot_multimove_setup_manual.md](docs/robot_multimove_setup_manual.md) for ABB Multi-Move
   setup to control two robots. See later sections of this doc for more information on Multi-Move.
 

@@ -1,4 +1,4 @@
-# ABB Motion Program Exec Manual Robot Setup
+# ABB Motion Program Exec Manual Multi-Move Robot Setup
 
 ABB Multi-Move allows for a single controller to synchronously control up to 4 robots. The ABB
 Motion Program Exec software can be used with Multi-Move to control two robots. It can
