@@ -440,6 +440,44 @@ plt.show()
 
 ```
 
+# Robot Raconteur Service
+
+A Robot Raconteur service is available to allow a client to execute multi-move programs. The service
+uses a standards track service definition `experimental.robotics.motion_program` that will provide interoperability
+between multiple robot types. Due to the differences in the robot commands between controller implementations there 
+may be slight differences in the commands between robots, but in general the commands are very similar.
+
+When installing the module, include the `robotraconteur` option to get the required dependencies:
+
+```bash
+python -m pip install abb-motion-program-exec[robotraconteur]
+```
+
+Start the service, specifying a robot info file:
+
+```
+abb-motion-program-exec-robotraconteur --mp-robot-info-file=config/abb_multimove_motion_program_robot_default_config.yml
+```
+
+Optionally start using a module if the entrypoint does not work:
+
+```
+python -m abb-motion-program-exec.robotraconteur --mp-robot-info-file=config/abb_multimove_motion_program_robot_default_config.yml
+```
+
+The following options are supported:
+
+* `--mp-robot-info-file=` - The info file that specifies information about the robot
+* `--mp-robot-base-url=` - The connection URL for Robot Web Services on the robot. Defaults to `http://127.0.0.1:80`
+   for use with Robot Studio virtual controllers. Set `127.0.0.1` to the WAN IP address of the robot.
+* `--mp-robot-username=` - The robot controller username. Defaults to "Default User"
+* `--mp-robot-password=` - The robot controller password. Defaults to "robotics"
+
+Examples for a single robot and multi-move robots are in the `examples/robotraconteur` directory. The motion
+programs make heavy use of `varvalue` types to allow for flexibility in the motion program contents.
+The Python type `RR.VarValue` is used to represent the `varvalue` type. See the Robot Raconteur Python documentation
+for more inforamtion on how `RR.VarValue` works and why it is necessary.
+
 ## License
 
 Apache 2.0 License, Copyright 2022 Wason Technology, LLC, Rensselaer Polytechnic Institute
