@@ -9,7 +9,7 @@ authors = [
 ]
 description = "Python package to execute motion commands on ABB robots and log results"
 license = {text = "Apache-2.0"}
-requires-python = ">=3.8"
+requires-python = ">=3.6"
 dependencies = [
     "requests",
     "numpy",
