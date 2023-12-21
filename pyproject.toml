@@ -35,3 +35,6 @@ robotraconteur = [
     "robotraconteurcompanion",
     "drekar-launch-process"
 ]
+
+[tool.setuptools.package-data]
+"abb_motion_program_exec.robotraconteur" = ["*.robdef"]
