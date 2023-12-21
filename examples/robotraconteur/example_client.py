@@ -4,11 +4,11 @@ import numpy as np
 c = RRN.ConnectService("rr+tcp://localhost:59843?service=mp_robot")
 
 robot_pose_type = RRN.GetStructureType("experimental.robotics.motion_program.RobotPose",c)
-moveabsj_type = RRN.GetStructureType("experimental.robotics.motion_program.MoveAbsJ",c)
-movej_type = RRN.GetStructureType("experimental.robotics.motion_program.MoveJ",c)
-movel_type = RRN.GetStructureType("experimental.robotics.motion_program.MoveL",c)
-movec_type = RRN.GetStructureType("experimental.robotics.motion_program.MoveC",c)
-settool_type = RRN.GetStructureType("experimental.robotics.motion_program.SetTool",c)
+moveabsj_type = RRN.GetStructureType("experimental.robotics.motion_program.MoveAbsJCommand",c)
+movej_type = RRN.GetStructureType("experimental.robotics.motion_program.MoveJCommand",c)
+movel_type = RRN.GetStructureType("experimental.robotics.motion_program.MoveLCommand",c)
+movec_type = RRN.GetStructureType("experimental.robotics.motion_program.MoveCCommand",c)
+settool_type = RRN.GetStructureType("experimental.robotics.motion_program.SetToolCommand",c)
 motionprogram_type = RRN.GetStructureType("experimental.robotics.motion_program.MotionProgram",c)
 toolinfo_type = RRN.GetStructureType("com.robotraconteur.robotics.tool.ToolInfo",c)
 transform_dt = RRN.GetNamedArrayDType("com.robotraconteur.geometry.Transform",c)
@@ -51,6 +51,7 @@ r3 = robot_pose([417.9236, 276.9956, 885.2959], [ 0.8909725 , -0.1745558 ,  0.08
 r4 = robot_pose([417.9235 , -11.00438, 759.2958 ], [0.7161292 , 0.1868255 , 0.01720813, 0.6722789 ], ( 0.,  2., -2.,  0.))
 r5 = robot_pose([ 417.9235, -173.0044,  876.2958], [0.6757616, 0.3854275, 0.2376617, 0.5816431], (-1.,  1., -1.,  0.))
 
+setup_cmds = []
 mp_cmds = []
 
 def moveabsj(j,velocity,blend_radius,fine_point):
@@ -59,7 +60,7 @@ def moveabsj(j,velocity,blend_radius,fine_point):
     cmd.tcp_velocity = velocity
     cmd.blend_radius = blend_radius
     cmd.fine_point = fine_point
-    return RR.VarValue(cmd,"experimental.robotics.motion_program.MoveAbsJ")
+    return RR.VarValue(cmd,"experimental.robotics.motion_program.MoveAbsJCommand")
 
 def movel(robot_pose,velocity,blend_radius,fine_point):
     cmd = movel_type()
@@ -67,7 +68,7 @@ def movel(robot_pose,velocity,blend_radius,fine_point):
     cmd.tcp_velocity = velocity
     cmd.blend_radius = blend_radius
     cmd.fine_point = fine_point
-    return RR.VarValue(cmd,"experimental.robotics.motion_program.MoveL")
+    return RR.VarValue(cmd,"experimental.robotics.motion_program.MoveLCommand")
 
 def movej(robot_pose,velocity,blend_radius,fine_point):
     cmd = movej_type()
@@ -75,7 +76,7 @@ def movej(robot_pose,velocity,blend_radius,fine_point):
     cmd.tcp_velocity = velocity
     cmd.blend_radius = blend_radius
     cmd.fine_point = fine_point
-    return RR.VarValue(cmd,"experimental.robotics.motion_program.MoveJ")
+    return RR.VarValue(cmd,"experimental.robotics.motion_program.MoveJCommand")
 
 def movec(robot_pose,robot_via_pose,velocity,blend_radius,fine_point):
     cmd = movec_type()
@@ -84,9 +85,9 @@ def movec(robot_pose,robot_via_pose,velocity,blend_radius,fine_point):
     cmd.tcp_velocity = velocity
     cmd.blend_radius = blend_radius
     cmd.fine_point = fine_point
-    return RR.VarValue(cmd,"experimental.robotics.motion_program.MoveC")
+    return RR.VarValue(cmd,"experimental.robotics.motion_program.MoveCCommand")
 
-mp_cmds.append(RR.VarValue(settool,"experimental.robotics.motion_program.SetTool"))
+setup_cmds.append(RR.VarValue(settool,"experimental.robotics.motion_program.SetToolCommand"))
 mp_cmds.append(moveabsj(j1,0.5,0.2,False))
 mp_cmds.append(moveabsj(j2,1,0.1,True))
 mp_cmds.append(moveabsj(j3,2,0.3,False))
@@ -103,8 +104,9 @@ mp_cmds.append(movej(r3,0.5,0.2,True))
 mp = motionprogram_type()
 
 mp.motion_program_commands = mp_cmds
+mp.motion_setup_commands = setup_cmds
 
-mp_gen = c.execute_motion_program_log(mp)
+mp_gen = c.execute_motion_program_record(mp, False)
 res = None
 
 while True:
@@ -114,14 +116,14 @@ while True:
     except RR.StopIterationException:
         break
 
-print(f"log_handle: {res.log_handle}")
+print(f"recording_handle: {res.recording_handle}")
 
-robot_log = c.read_log(res.log_handle).NextAll()[0]
+robot_recording = c.read_recording(res.recording_handle).NextAll()[0]
 
-print(robot_log.time)
-print(robot_log.command_number)
-print(robot_log.joints)
+print(robot_recording.time)
+print(robot_recording.command_number)
+print(robot_recording.joints)
 
-c.clear_logs()
+c.clear_recordings()
 
 print("Done!")
