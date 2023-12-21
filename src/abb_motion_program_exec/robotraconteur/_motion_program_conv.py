@@ -4,6 +4,7 @@ import numpy as np
 from .. import abb_motion_program_exec_client as abb_exec
 import RobotRaconteur as RR
 import general_robotics_toolbox as rox
+import re
 
 def rr_pose_to_abb(rr_pose):
     a = NamedArrayToArray(rr_pose)
@@ -55,21 +56,24 @@ def rr_joints_to_abb(rr_joints, rr_joint_units):
     #TODO: use "extended" for external axes
     return abb_exec.jointtarget(np.rad2deg(rr_joints), [6e5]*6)
 
-def rr_robot_pose_to_abb(rr_robot_pose, cfx_robot):
+def rr_robot_pose_to_abb(rr_robot_pose, cfx_robot, confdata_extra = None):
     #TODO: joint units
     #TODO: use "extended" for external axes
     p = rr_pose_to_abb(rr_robot_pose.tcp_pose)
-    wrist_vs_axis1 = rox.fwdkin(cfx_robot, [0,rr_robot_pose.joint_position_seed[1],
-        rr_robot_pose.joint_position_seed[2],0,0,0]).p[0] < 0
-    wrist_vs_lower_arm = rox.fwdkin(cfx_robot, [0,0,rr_robot_pose.joint_position_seed[2],0,0,0]).p[0] < 0
-    axis_5_sign = rr_robot_pose.joint_position_seed[4] < 0
-    cfx = np.packbits([axis_5_sign, wrist_vs_lower_arm, wrist_vs_axis1], bitorder='little').item()
-    cd = abb_exec.confdata(
-        np.floor(rr_robot_pose.joint_position_seed[0]/(np.pi/2)),
-        np.floor(rr_robot_pose.joint_position_seed[3]/(np.pi/2)),
-        np.floor(rr_robot_pose.joint_position_seed[5]/(np.pi/2)),
-        cfx
-    )
+    if not confdata_extra:
+        wrist_vs_axis1 = rox.fwdkin(cfx_robot, [0,rr_robot_pose.joint_position_seed[1],
+            rr_robot_pose.joint_position_seed[2],0,0,0]).p[0] < 0
+        wrist_vs_lower_arm = rox.fwdkin(cfx_robot, [0,0,rr_robot_pose.joint_position_seed[2],0,0,0]).p[0] < 0
+        axis_5_sign = rr_robot_pose.joint_position_seed[4] < 0
+        cfx = np.packbits([axis_5_sign, wrist_vs_lower_arm, wrist_vs_axis1], bitorder='little').item()
+        cd = abb_exec.confdata(
+            np.floor(rr_robot_pose.joint_position_seed[0]/(np.pi/2)),
+            np.floor(rr_robot_pose.joint_position_seed[3]/(np.pi/2)),
+            np.floor(rr_robot_pose.joint_position_seed[5]/(np.pi/2)),
+            cfx
+        )
+    else:
+        cd = abb_exec.confdata(confdata_extra.data[0], confdata_extra.data[1], confdata_extra.data[2], confdata_extra.data[3])
     return abb_exec.robtarget(p.trans,p.rot,cd, [6e5]*6)
 
 cmd_get_arg_sentinel = object()
@@ -94,6 +98,14 @@ def cmd_get_arg(cmd, arg_name, default_value = cmd_arg_no_default):
 
     return val
 
+def cmd_get_extended(cmd, extended_name, default_value = None):
+    if isinstance(cmd, RR.VarValue):
+        cmd = cmd.data
+    if not cmd.extended:
+        return default_value
+    val = cmd.extended.get(extended_name, default_value)
+    return val
+
 class MoveAbsJCommandConv:
     rr_types = ["experimental.robotics.motion_program.MoveAbsJCommand"]
     freeform_names = ["MoveAbsJ", "MoveAbsJCommand", "experimental.robotics.motion_program.MoveAbsJCommand"]
@@ -111,7 +123,7 @@ class MoveJCommandConv:
     def apply_rr_command(self, cmd, mp, cfx_robot, **kwargs):
         zd = rr_zone_to_abb(cmd_get_arg(cmd,"fine_point"),cmd_get_arg(cmd,"blend_radius"))
         sd = rr_speed_to_abb(cmd_get_arg(cmd,"tcp_velocity"))
-        rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"), cfx_robot)
+        rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"), cfx_robot, cmd_get_extended(cmd, "confdata"))
         mp.MoveJ(rt, sd, zd)
 
 class MoveLCommandConv:
@@ -121,7 +133,7 @@ class MoveLCommandConv:
     def apply_rr_command(self, cmd, mp, cfx_robot, **kwargs):
         zd = rr_zone_to_abb(cmd_get_arg(cmd,"fine_point"),cmd_get_arg(cmd,"blend_radius"))
         sd = rr_speed_to_abb(cmd_get_arg(cmd,"tcp_velocity"))
-        rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"), cfx_robot)
+        rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"), cfx_robot, cmd_get_extended(cmd, "confdata"))
         mp.MoveL(rt, sd, zd)
 
 class MoveCCommandConv:
@@ -131,8 +143,8 @@ class MoveCCommandConv:
     def apply_rr_command(self, cmd, mp, cfx_robot, **kwargs):
         zd = rr_zone_to_abb(cmd_get_arg(cmd,"fine_point"),cmd_get_arg(cmd,"blend_radius"))
         sd = rr_speed_to_abb(cmd_get_arg(cmd,"tcp_velocity"))
-        rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"), cfx_robot)
-        rt2 = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_via_pose"), cfx_robot)
+        rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"), cfx_robot, cmd_get_extended(cmd, "confdata"))
+        rt2 = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_via_pose"), cfx_robot, cmd_get_extended("confdata_via"))
         mp.MoveC(rt2, rt,  sd, zd)
 
 class WaitTimeCommandConv:
@@ -319,7 +331,7 @@ class EGMMoveLCommandConv:
     def apply_rr_command(self, cmd, mp, cfx_robot, **kwargs):
         zd = rr_zone_to_abb(cmd_get_arg(cmd,"fine_point"),cmd_get_arg(cmd,"blend_radius"))
         sd = rr_speed_to_abb(cmd_get_arg(cmd,"tcp_velocity"))
-        rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"),cfx_robot)
+        rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"),cfx_robot, cmd_get_extended(cmd, "confdata"))
         mp.EGMMoveL(rt, sd, zd)
 
 class EGMMoveCCommandConv:
@@ -329,8 +341,8 @@ class EGMMoveCCommandConv:
     def apply_rr_command(self, cmd, mp, cfx_robot,**kwargs):
         zd = rr_zone_to_abb(cmd_get_arg(cmd,"fine_point"),cmd_get_arg(cmd,"blend_radius"))
         sd = rr_speed_to_abb(cmd_get_arg(cmd,"tcp_velocity"))
-        rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"),cfx_robot)
-        rt2 = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_via_pose"),cfx_robot)
+        rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"),cfx_robot,cmd_get_extended(cmd, "confdata"))
+        rt2 = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_via_pose"),cfx_robot,cmd_get_extended(cmd,"confdata_via"))
         mp.EGMMoveC(rt2, rt,  sd, zd)
 
 #ABB Setup Commands
@@ -428,11 +440,88 @@ def rr_motion_program_to_abb(rr_mp, robot):
                 conv.add_setup_args(setup_cmd, setup_args)
       
     if rr_mp.extended is not None:
-        first_cmd_num_rr = rr_mp.extended.get("first_command_number")
-        setup_args["first_cmd_num"] = int(first_cmd_num_rr.data)
+        first_cmd_num_rr = rr_mp.extended.get("first_command_number", None)
+        if first_cmd_num_rr is not None:
+            setup_args["first_cmd_num"] = int(first_cmd_num_rr.data)
     mp = abb_exec.MotionProgram(**setup_args)
     for cmd in rr_mp.motion_program_commands:
         #with suppress(OptionalCommandException):
             apply_rr_motion_command_to_mp(cmd, mp, robot=robot, cfx_robot=cfx_robot)
         
     return mp
+
+def is_rr_motion_program_multimove(rr_mp):
+    if rr_mp.extended is None:
+        return False
+    groups =rr_mp.extended.get("groups", None)
+    if groups is None:
+        groups = rr_mp.extended.get("tasks", None)
+    if groups is None:
+        return False
+    
+    if groups.datatype == "string":
+        return False
+    assert groups.datatype == "varvalue{list}", "Invalid groups type"
+    return len(groups.data) > 1
+
+def get_rr_motion_program_task(rr_mp, default_task = "T_ROB1"):
+    if rr_mp.extended is None:
+        return default_task
+    groups =rr_mp.extended.get("groups", None)
+    if groups is None:
+        groups = rr_mp.extended.get("tasks", None)
+    if groups is None:
+        return default_task
+    
+    if groups.datatype == "string":
+        return groups.data
+    else:
+        assert groups.datatype == "varvalue{list}"
+        assert len(groups) == 1, "Multiple tasks not expected"
+        if groups.data[0].datatype == "string":
+            return groups.data[0].data
+        elif groups.data[0].datatype == "int32[]" or groups.data[0].datatype == "uint32[]":
+            return f"T_ROB{groups.data[0].data[0]+1}"
+        else:
+            assert False, "Invalid task type"
+    
+def rr_motion_program_to_abb2(program, robots):
+    if (is_rr_motion_program_multimove(program)):
+        return rr_multimove_motion_program_to_abb(program, robots)
+    task = get_rr_motion_program_task(program)
+
+    robot_ind_match = re.match(r"T_ROB(\d+)", task)
+    assert robot_ind_match is not None, "Invalid task name"
+    robot_ind = int(robot_ind_match.group(1))-1
+
+    rox_robot = robots[robot_ind]
+    mp = rr_motion_program_to_abb(program, rox_robot)
+    return mp, False, task
+
+def rr_multimove_motion_program_to_abb(program, robots):
+    motion_programs = [program]
+    multi_programs = program.extended.get("multi_motion_programs", None)
+    assert multi_programs is not None, "Invalid multimove motion program"
+    assert multi_programs.datatype == "varvalue{list}", "Invalid multimove motion program"
+    for mp in multi_programs.data:
+        assert mp.datatype == "experimental.robotics.motion_program.MotionProgram", "Invalid multimove motion program"
+        motion_programs.append(mp.data)
+
+    groups = program.extended.get("groups", None)
+    assert groups is not None, "Invalid multimove motion program"
+    if groups.datatype == "int32[]" or groups.datatype == "uint32[]":
+        tasks = [f"T_ROB{x+1}" for x in groups.data]
+    elif groups.datatype == "varvalue{list}":
+        tasks = [x.data for x in groups.data]
+    else:
+        assert False, "Invalid multimove motion program"
+        
+    programs = []
+    for i in range(len(motion_programs)):
+        robot_ind_match = re.match(r"T_ROB(\d+)", tasks[i])
+        assert robot_ind_match is not None, "Invalid task name"
+        robot_ind = int(robot_ind_match.group(1))-1
+        rox_robot = robots[robot_ind]
+        programs.append(rr_motion_program_to_abb(motion_programs[i], rox_robot))
+
+    return programs, True, tasks

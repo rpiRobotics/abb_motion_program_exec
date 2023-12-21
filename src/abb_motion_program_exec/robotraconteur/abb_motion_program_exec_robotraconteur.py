@@ -11,7 +11,7 @@ from RobotRaconteurCompanion.Util.AttributesUtil import AttributesUtil
 from RobotRaconteurCompanion.Util.TaskGenerator import SyncTaskGenerator
 from RobotRaconteurCompanion.Util.RobDef import register_service_types_from_resources
 from RobotRaconteurCompanion.Util.RobotUtil import RobotUtil
-from ._motion_program_conv import rr_motion_program_to_abb
+from ._motion_program_conv import rr_motion_program_to_abb2
 
 import traceback
 import time
@@ -46,9 +46,9 @@ class MotionExecImpl:
 
         assert queue is False, "Motion program queue not supported"
 
-        abb_program = rr_motion_program_to_abb(program, self.mp_robot_info.robot_info)
+        abb_program, is_multimove, tasks = rr_motion_program_to_abb2(program, self._rox_robots)
 
-        gen = ExecuteMotionProgramGen(self, self._abb_client, abb_program)
+        gen = ExecuteMotionProgramGen(self, self._abb_client, abb_program, is_multimove, tasks)
 
         return gen
 
@@ -56,9 +56,9 @@ class MotionExecImpl:
 
         assert queue is False, "Motion program queue not supported"
 
-        abb_program = rr_motion_program_to_abb(program, self._rox_robots[0])
+        abb_program, is_multimove, tasks = rr_motion_program_to_abb2(program, self._rox_robots)
 
-        gen = ExecuteMotionProgramGen(self, self._abb_client, abb_program, save_recording = True)
+        gen = ExecuteMotionProgramGen(self, self._abb_client, abb_program, is_multimove, tasks, save_recording = True)
 
         return gen
 
@@ -83,17 +83,22 @@ class MotionExecImpl:
 
 
 class ExecuteMotionProgramGen(SyncTaskGenerator):
-    def __init__(self, parent, abb_client, motion_program, save_recording = False):
+    def __init__(self, parent, abb_client, motion_program, is_multimove, tasks, save_recording = False):
         super().__init__(RRN, RRN.GetStructureType("experimental.robotics.motion_program.MotionProgramStatus"), 1, -1)
         self._parent = parent
         self._abb_client = abb_client
         self._motion_program = motion_program
         self._recording_handle = 0
         self._save_recording = save_recording
+        self._is_multimove = is_multimove
+        self._tasks = tasks
 
     def RunTask(self):        
         print("Start Motion Program!")
-        robot_recording_data = self._abb_client.execute_motion_program(self._motion_program)
+        if not self._is_multimove:
+            robot_recording_data = self._abb_client.execute_motion_program(self._motion_program, task=self._tasks)
+        else:
+            robot_recording_data = self._abb_client.execute_multimove_motion_program(self._motion_program, tasks=self._tasks)
         if self._save_recording:
             recording_handle = random.randint(0,0xFFFFFFF)
             self._parent._recordings[recording_handle] = robot_recording_data
@@ -167,6 +172,7 @@ def main():
 
         service_ctx = RRN.RegisterService("mp_robot","experimental.robotics.motion_program.MotionProgramRobot",mp_exec_obj)
         service_ctx.SetServiceAttributes(mp_robot_attributes)
+        service_ctx.AddExtraImport("experimental.abb_robot.motion_program")
 
         print("Press ctrl+c to quit")
         drekar_launch_process.wait_exit()
