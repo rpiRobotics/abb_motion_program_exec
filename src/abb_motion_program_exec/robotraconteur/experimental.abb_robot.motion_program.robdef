@@ -1,0 +1,150 @@
+service experimental.abb_robot.motion_program
+
+import com.robotraconteur.geometry
+import experimental.robotics.motion_program
+
+using com.robotraconteur.geometry.Pose
+using com.robotraconteur.geometry.Point
+using experimental.robotics.motion_program.RobotPose
+
+enum CirPathModeSwitch
+    PathFrame = 1,
+    ObjectFrame = 2,
+    CirPointOri = 3,
+    Wrist45 = 4,
+    Wrist46 = 5,
+    Wrist56 = 6
+end
+
+enum egmframetype
+    EGM_FRAME_BASE = 0,
+    EGM_FRAME_TOOL = 1,
+    EGM_FRAME_WOBJ = 2,
+    EGM_FRAME_WORLD = 3,
+    EGM_FRAME_JOINT = 4
+end
+
+struct CirPathModeCommand
+    field CirPathModeSwitch switch
+    field varvalue{string} extended
+end
+
+struct SyncMoveOnCommand
+    field varvalue{string} extended
+end
+
+struct SyncMoveOffCommand
+    field varvalue{string} extended
+end
+
+struct EGMRunJointCommand
+    field double cond_time
+    field double ramp_in_time
+    field double ramp_out_time
+    field varvalue{string} extended
+end
+
+struct EGMRunPoseCommand
+    field double cond_time
+    field double ramp_in_time
+    field double ramp_out_time
+    field Pose offset
+    field varvalue{string} extended
+end
+
+struct EGMMoveLCommand
+    field RobotPose tcp_pose
+    field double tcp_velocity
+    field double tcp_acceleration    
+    field double blend_radius
+    field bool fine_point
+    field varvalue{string} extended 
+end
+
+struct EGMMoveCCommand
+    field RobotPose tcp_via_pose
+    field RobotPose tcp_pose
+    field double tcp_velocity
+    field double tcp_acceleration    
+    field double blend_radius
+    field bool fine_point
+    field varvalue{string} extended
+end
+
+struct egm_minmax
+    field double min
+    field double max
+end
+
+struct EGMStreamConfigCommand
+    field varvalue{string} extended
+end
+
+struct EGMJointTargetConfigCommand
+    field egm_minmax J1
+    field egm_minmax J2
+    field egm_minmax J3
+    field egm_minmax J4
+    field egm_minmax J5
+    field egm_minmax J6
+    field double max_position_deviation
+    field double max_speed_deviation
+    field varvalue{string} extended
+end
+
+struct EGMPoseTargetConfigCommand
+    field Pose corr_frame
+    field egmframetype corr_fr_type
+    field Pose sensor_frame
+    field egmframetype sensor_fr_type
+    field egm_minmax x
+    field egm_minmax y
+    field egm_minmax z
+    field egm_minmax rx
+    field egm_minmax ry
+    field egm_minmax rz
+    field double max_position_deviation
+    field double max_speed_deviation
+    field varvalue{string} extended
+end
+
+struct EGMPathCorrectionConfigCommand
+    field Pose sensor_frame
+    field varvalue{string} extended
+end
+
+struct EGMJointTarget
+    field uint64 seqno
+    field uint64 state_seqno
+    field double[] joints
+    field double[] external_joints
+end
+
+struct EGMPoseTarget
+    field uint64 seqno
+    field uint64 state_seqno
+    field Pose cartesian
+    field double[] external_joints
+end
+
+struct EGMPathCorrection
+    field uint64 seqno
+    field uint64 state_seqno
+    field Point pos
+    field uint32 age
+end
+
+struct WorkObjectInfo
+    field bool robhold
+    field bool ufprog
+    field string ufmec
+    field Pose uframe
+    field Pose oframe
+    field varvalue{string} extended
+end
+
+struct SetWorkObjectCommand
+    field WorkObjectInfo workobject_info
+    field varvalue{string} extended
+end
+

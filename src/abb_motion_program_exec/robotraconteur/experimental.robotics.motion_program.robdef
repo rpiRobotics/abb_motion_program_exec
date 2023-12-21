@@ -1,0 +1,196 @@
+service experimental.robotics.motion_program
+
+stdver 0.10
+
+import com.robotraconteur.device
+import com.robotraconteur.geometry
+import com.robotraconteur.robotics.joints
+import com.robotraconteur.robotics.tool
+import com.robotraconteur.robotics.payload
+import com.robotraconteur.robotics.robot
+import com.robotraconteur.action
+import com.robotraconteur.datetime
+
+using com.robotraconteur.device.Device
+using com.robotraconteur.device.DeviceInfo
+using com.robotraconteur.robotics.joints.JointPositionUnits
+using com.robotraconteur.geometry.Pose
+using com.robotraconteur.robotics.tool.ToolInfo
+using com.robotraconteur.robotics.payload.PayloadInfo
+using com.robotraconteur.robotics.robot.RobotInfo
+using com.robotraconteur.action.ActionStatusCode
+using com.robotraconteur.datetime.TimeSpec3
+using com.robotraconteur.robotics.robot.RobotOperationalMode
+using com.robotraconteur.robotics.robot.RobotControllerState
+
+enum MotionProgramRobotCapabilities
+    unknown = 0,
+    queuing = 0x01,
+    current_command_feedback = 0x02,
+    queued_command_feedback = 0x04,
+    motion_recording = 0x08,
+    motion_program_preemption = 0x10,
+    motion_program_mode_select = 0x20,
+    preempt_number_feedback = 0x40
+end
+
+enum MotionProgramRobotStateFlags
+    unknown = 0,
+    error = 0x1,
+    fatal_error = 0x2,
+    estop = 0x4,
+    estop_button1 = 0x8,
+    estop_button2 = 0x10,
+    estop_button3 = 0x20,
+    estop_button4 = 0x40,
+    estop_guard1 = 0x80,
+    estop_guard2 = 0x100,
+    estop_guard3 = 0x200,
+    estop_guard4 = 0x400,
+    estop_software = 0x800,
+    estop_fault = 0x1000,
+    estop_internal = 0x2000,
+    estop_other = 0x4000,
+    estop_released = 0x8000,
+    enabling_switch = 0x10000,
+    enabled = 0x20000,
+    ready = 0x40000,
+    homed = 0x80000,
+    homing_required = 0x100000,
+    communication_failure = 0x200000,
+    motion_program_mode_enabled = 0x10000000,
+    motion_program_running = 0x20000000
+end
+
+struct RobotPose
+    field Pose tcp_pose
+    field double[] joint_position_seed
+    field JointPositionUnits{list} joint_units
+end
+
+struct MoveAbsJCommand
+    field double[] joint_position
+    field JointPositionUnits{list} joint_units
+    field double tcp_velocity
+    field double tcp_acceleration    
+    field double blend_radius
+    field bool fine_point
+    field varvalue{string} extended    
+end
+
+struct MoveJCommand
+    field RobotPose tcp_pose
+    field double tcp_velocity
+    field double tcp_acceleration    
+    field double blend_radius
+    field bool fine_point
+    field varvalue{string} extended    
+end
+
+struct MoveLCommand
+    field RobotPose tcp_pose
+    field double tcp_velocity
+    field double tcp_acceleration    
+    field double blend_radius
+    field bool fine_point
+    field varvalue{string} extended    
+end
+
+struct MoveCCommand
+    field RobotPose tcp_via_pose
+    field RobotPose tcp_pose
+    field double tcp_velocity
+    field double tcp_acceleration
+    field double blend_radius
+    field bool fine_point
+    field varvalue{string} extended    
+end
+
+struct WaitTimeCommand
+    field double time
+    field varvalue{string} extended
+end
+
+struct SetToolCommand
+    field ToolInfo tool_info
+    field varvalue{string} extended
+end
+
+struct SetPayloadCommand
+    field PayloadInfo payload_info
+    field Pose payload_pose
+    field varvalue{string} extended
+end
+
+struct FreeformCommand
+    field string command_name
+    field varvalue{string} command_args
+    field bool optional
+    field varvalue{string} extended
+end
+
+struct MotionProgram
+    field varvalue{list} motion_setup_commands
+    field varvalue{list} motion_program_commands
+    field varvalue{string} extended
+end
+
+struct MotionProgramCommandInfo
+    field string command_name
+    field string{list} command_struct_types
+    field string{list} freeform_command_names
+    field string description
+    field varvalue{string} extended
+end
+
+struct MotionProgramRobotInfo
+    field RobotInfo robot_info
+    field MotionProgramCommandInfo{list} supported_setup_commands
+    field MotionProgramCommandInfo{list} supported_motion_commands
+    field uint32 motion_program_robot_capabilities 
+    field varvalue{string} extended
+end
+
+struct MotionProgramStatus
+    field ActionStatusCode action_status
+    field int32 current_command
+    field int32 queued_command
+    field int32 current_preempt
+    field uint32 recording_handle
+end
+
+struct MotionProgramRobotState
+    field TimeSpec3 ts
+    field uint64 seqno
+    field RobotOperationalMode operational_mode
+    field RobotControllerState controller_state
+    field uint64 motion_program_robot_state_flags
+    field int32 current_command
+    field int32 queued_command
+    field int32 current_preempt
+end
+
+struct MotionProgramRecordingPart
+    field double[] time
+    field int32[] command_number
+    field double[*] joints
+    field string{list} column_headers
+end
+
+object MotionProgramRobot
+    implements Device
+    property DeviceInfo device_info [readonly,nolock]
+    property RobotInfo robot_info [readonly,nolock]
+    property MotionProgramRobotInfo motion_program_robot_info [readonly,nolock]
+    function MotionProgramStatus{generator} execute_motion_program(MotionProgram program, bool queue)
+    function MotionProgramStatus{generator} execute_motion_program_record(MotionProgram program, bool queue)
+    function void preempt_motion_program(MotionProgram program, uint32 preempt_number, uint32 preempt_cmdnum)
+    function MotionProgramRecordingPart{generator} read_recording(uint32 recording_handle)
+    wire MotionProgramRobotState motion_program_robot_state [readonly,nolock]
+    function void enable_motion_program_mode()
+    function void disable_motion_program_mode()
+    function void clear_recordings()
+    function varvalue getf_param(string param_name)
+    function void setf_param(string param_name, varvalue value)
+    event param_changed(string param_name)
+end

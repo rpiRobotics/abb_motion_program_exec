@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "abb_motion_program_exec"
+version = "0.7.0"
+authors = [
+    {name ="John Wason", email = "wason@wasontech.com"}
+]
+description = "Python package to execute motion commands on ABB robots and log results"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.6"
+dependencies = [
+    "requests",
+    "numpy",
+    "abb-robot-client[aio]",
+    "dataclasses; python_version<'3.7'"
+]
+readme = "README.md"
+
+[project.urls]
+homepage = "https://github.com/rpiRobotics/abb_motion_program_exec"
+documentation = "https://abb-motion-program-exec.readthedocs.io/en/latest/"
+repository = "https://github.com/rpiRobotics/abb_motion_program_exec"
+
+[project.scripts]
+abb-motion-program-exec-robotraconteur = "abb_motion_program_exec.robotraconteur.abb_motion_program_exec_robotraconteur:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+robotraconteur = [
+    "robotraconteur",
+    "robotraconteurcompanion",
+    "drekar-launch-process"
+]
+
+[tool.setuptools.package-data]
+"abb_motion_program_exec.robotraconteur" = ["*.robdef"]
