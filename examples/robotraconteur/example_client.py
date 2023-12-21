@@ -109,16 +109,18 @@ mp.motion_setup_commands = setup_cmds
 mp_gen = c.execute_motion_program_record(mp, False)
 res = None
 
+status = None
 while True:
-    try:
-        res = mp_gen.Next()
-        print(res)
-    except RR.StopIterationException:
+    res, status1 = mp_gen.TryNext()
+    if not res:
         break
+    status = status1
+    print(status)
+    
 
-print(f"recording_handle: {res.recording_handle}")
+print(f"recording_handle: {status.recording_handle}")
 
-robot_recording = c.read_recording(res.recording_handle).NextAll()[0]
+robot_recording = c.read_recording(status.recording_handle).NextAll()[0]
 
 print(robot_recording.time)
 print(robot_recording.command_number)
