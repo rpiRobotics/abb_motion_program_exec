@@ -462,7 +462,7 @@ abb-motion-program-exec-robotraconteur --mp-robot-info-file=config/abb_multimove
 Optionally start using a module if the entrypoint does not work:
 
 ```
-python -m abb-motion-program-exec.robotraconteur --mp-robot-info-file=config/abb_multimove_motion_program_robot_default_config.yml
+python -m abb_motion_program_exec.robotraconteur --mp-robot-info-file=config/abb_multimove_motion_program_robot_default_config.yml
 ```
 
 The following options are supported:
