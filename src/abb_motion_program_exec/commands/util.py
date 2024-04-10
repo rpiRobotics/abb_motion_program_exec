@@ -35,13 +35,14 @@ def zonedata_to_bin(z: "zonedata"):
 
 def fix_array(arr, l):
     if isinstance(arr,list):
-        assert len(arr) == l, f"Invalid array, expected array length {l}"
+        if not len(arr) == l:
+            raise Exception(f"Invalid array, expected array length {l}")
         return np.array(arr,dtype=np.float64)
     if arr.shape == (l,):
         return arr
     if arr.shape == (l,1) or arr.shape == (1,l):
         return arr.flatten()
-    assert False, f"Invalid array, expected array length {l}"
+    raise Exception(f"Invalid array, expected array length {l}")
         
 
 _jointtarget_struct_fmt = struct.Struct("<12f")
@@ -79,7 +80,8 @@ def intnum_to_bin(f):
     return _intnum_struct_fmt.pack(f)
 
 def str_to_bin(s: str):
-    assert len(s) <= 32
+    if not len(s) <= 32:
+        raise Exception("String length must be less than or equal to 32")
     s_bin = s.encode('ascii')
     pad_len = 32 - len(s_bin)
     if pad_len > 0:

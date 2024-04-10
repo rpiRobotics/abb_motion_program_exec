@@ -1,0 +1,162 @@
+robot_info:
+  device_info:
+    device:
+      name: abb_robot
+    manufacturer:
+      name: ABB
+      uuid: ee260e78-d731-415a-84ca-4b02c487410c
+    model:
+      name: ABB_IRB6700_150_320
+      uuid: 9d43d745-dbea-4a88-ac18-43a64bca67eb
+    user_description: ABB Robot
+    serial_number: 123456789
+    device_classes:
+      - class_identifier:
+          name: robot
+          uuid: 39b513e7-21b9-4b49-8654-7537473030eb
+        subclasses: 
+          - serial
+          - serial_six_axis        
+    implemented_types:
+      - com.robotraconteur.robotics.robot.Robot
+  robot_type: serial
+  robot_capabilities:
+  - jog_command
+  - trajectory_command
+  - position_command
+  chains:
+  - H:
+    - x: 0.0
+      y: 0.0
+      z: 1.0
+    - x: 0.0
+      y: 1.0
+      z: 0.0
+    - x: 0.0
+      y: 1.0
+      z: 0.0
+    - x: 1.0
+      y: 0.0
+      z: 0.0
+    - x: 0.0
+      y: 1.0
+      z: 0.0
+    - x: 1.0
+      y: 0.0
+      z: 0.0
+    P:
+    - x: 0.0
+      y: 0.0
+      z: 0.78
+    - x: 0.32
+      y: 0.0
+      z: 0.0
+    - x: 0.0
+      y: 0.0
+      z: 1.280
+    - x: 0.0
+      y: 0.0
+      z: 0.2
+    - x: 1.5925
+      y: 0.0
+      z: 0.0
+    - x: 0.2
+      y: 0.0
+      z: 0.0
+    - x: 0.0
+      y: 0.0
+      z: 0.0
+    flange_identifier: tool0
+    flange_pose:
+      orientation:
+        w: 0.707107
+        x: 0.0
+        y: 0.707107
+        z: 0.0
+      position:
+        x: 0.0
+        y: 0.0
+        z: 0.0
+    joint_numbers:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    kin_chain_identifier: robot_arm
+  joint_info:
+  - default_effort_units: newton_meter
+    default_units: radian
+    joint_identifier: joint_1
+    joint_limits:
+      effort: 0.0
+      lower: -2.96706
+      upper: 2.96706
+      velocity: 1.745329
+      acceleration: 10
+    joint_type: revolute
+    passive: false
+  - default_effort_units: newton_meter
+    default_units: radian
+    joint_identifier: joint_2
+    joint_limits:
+      effort: 0.0
+      lower: -1.134464
+      upper: 1.48353
+      velocity: 1.570796
+      acceleration: 15
+    joint_type: revolute
+    passive: false
+  - default_effort_units: newton_meter
+    default_units: radian
+    joint_identifier: joint_3
+    joint_limits:
+      effort: 0.0
+      lower: -3.141593
+      upper: 1.22173
+      velocity: 1.570796
+      acceleration: 15
+    joint_type: revolute
+    passive: false
+  - default_effort_units: newton_meter
+    default_units: radian
+    joint_identifier: joint_4
+    joint_limits:
+      effort: 0.0
+      lower: -5.235988
+      upper: 5.235988
+      velocity: 2.96706
+      acceleration: 20
+    joint_type: revolute
+    passive: false
+  - default_effort_units: newton_meter
+    default_units: radian
+    joint_identifier: joint_5
+    joint_limits:
+      effort: 0.0
+      lower: -2.268928
+      upper: 2.268928
+      velocity: 2.094395
+      acceleration: 20
+    joint_type: revolute
+    passive: false
+  - default_effort_units: newton_meter
+    default_units: radian
+    joint_identifier: joint_6
+    joint_limits:
+      effort: 0.0
+      lower: -6.283185
+      upper: 6.283185
+      velocity: 3.316126
+      acceleration: 20
+    joint_type: revolute
+    passive: false
+supported_commands:
+  - MoveAbsJ
+  - MoveJ
+  - MoveL
+  - MoveC
+  - WaitTime
+  - SetTool
+  - SetPayload

@@ -132,10 +132,11 @@ class MotionProgramExecClientAIO:
         if tasks is None:
             tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
 
-        assert len(motion_programs) == len(tasks), \
-            "Motion program list and task list must have some length"
+        if not len(motion_programs) == len(tasks):
+            raise Exception("Motion program list and task list must have some length")
 
-        assert len(tasks) > 1, "Multimove program must have at least two tasks"
+        if not len(tasks) > 1:
+            raise Exception("Multimove program must have at least two tasks")
 
         b = []
         filenames = []
@@ -146,8 +147,10 @@ class MotionProgramExecClientAIO:
             filenames.append(filename1)
             b.append(b1)
 
-        assert len(b) > 0, "Motion program must not be empty"
-        assert len(filenames) == len(b)
+        if not len(b) > 0:
+            raise Exception("Motion program must not be empty")
+        if not len(filenames) == len(b):
+            raise Exception("Filename and motion program length mismatch")
         async def _upload():
             for i in range(len(filenames)):
                 await self.abb_client_aio.upload_file(filenames[i], b[i])
@@ -176,10 +179,11 @@ class MotionProgramExecClientAIO:
         if tasks is None:
             tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
 
-        assert len(motion_programs) == len(tasks), \
-            "Motion program list and task list must have some length"
+        if not len(motion_programs) == len(tasks):
+            raise Exception("Motion program list and task list must have some length")
 
-        assert len(tasks) > 1, "Multimove program must have at least two tasks"
+        if not len(tasks) > 1:
+            raise Exception("Multimove program must have at least two tasks")
 
         b = []
         filenames = []
@@ -198,10 +202,12 @@ class MotionProgramExecClientAIO:
     async def _download_and_start_motion_program(self, tasks, upload_fn: Callable[[],None]):
         
         exec_state = await self.abb_client_aio.get_execution_state()
-        assert exec_state.ctrlexecstate == "stopped"
+        if not exec_state.ctrlexecstate == "stopped":
+            raise Exception("Controller must be stopped before executing motion program")
         #assert exec_state.cycle == "once"
         ctrl_state = await self.abb_client_aio.get_controller_state()
-        assert ctrl_state == "motoron"
+        if not ctrl_state == "motoron":
+            raise Exception("Controller must be motor on before executing motion program")
 
         log_before = await self.abb_client_aio.read_event_log()
         prev_seqnum = log_before[0].seqnum
@@ -252,12 +258,12 @@ class MotionProgramExecClientAIO:
         for l in log_after:
             if l.msgtype >= 2:
                 if len(l.args) > 0 and l.args[0].lower() == "motion program failed":
-                    assert False, l.args[1] + " " + l.args[2] + " " + l.args[3] + " " + l.args[4]
+                    raise Exception( l.args[1] + " " + l.args[2] + " " + l.args[3] + " " + l.args[4])
             if l.msgtype >= 3:
                 failed = True
 
         if failed:
-            assert False, "Motion Program Failed, see robot error log for details"
+            raise Exception("Motion Program Failed, see robot error log for details")
 
         found_log_open = False
         found_log_close = False
@@ -267,17 +273,21 @@ class MotionProgramExecClientAIO:
             if l.code == 80003:
                 if l.args[0].lower() == "motion program log file closed":
                     if found_log_open:
-                        assert not found_log_close, "Found more than one log closed message"
+                        if found_log_close:
+                            raise Exception("Found more than one log closed message")
                         found_log_close = True
                 
                 if l.args[0].lower() == "motion program log file opened":
-                    assert not found_log_open, "Found more than one log opened message"
+                    if found_log_open:
+                        raise Exception("Found more than one log opened message")
                     found_log_open = True
                     log_filename_m = re.search(r"(log\-[\d\-]+\.bin)",l.args[1])
-                    assert log_filename_m, "Invalid log opened message"
+                    if not log_filename_m:
+                        raise Exception("Invalid log opened message")
                     log_filename = log_filename_m.group(1)
 
-        assert found_log_open and found_log_close and len(log_filename) > 0, "Could not find log file messages in robot event log"
+        if not (found_log_open and found_log_close and len(log_filename) > 0):
+            raise Exception("Could not find log file messages in robot event log")
 
         ramdisk = await self.abb_client_aio.get_ramdisk_path()
         log_contents = await self.abb_client_aio.read_file(f"{ramdisk}/{log_filename}")

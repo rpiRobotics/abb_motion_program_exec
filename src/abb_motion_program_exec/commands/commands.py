@@ -148,7 +148,8 @@ class CirPathModeCommand(CommandBase):
 
     def write_params(self, f: io.IOBase):
         val = self.switch.value
-        assert val >=1 and val <= 6, "Invalid CirPathMode switch"
+        if not (val >=1 and val <= 6):
+            raise Exception("Invalid CirPathMode switch")
         f.write(util.num_to_bin(val))
 
     def to_rapid(self, **kwargs):
@@ -164,7 +165,7 @@ class CirPathModeCommand(CommandBase):
             return r"CirPathMode\Wrist46;"
         if self.switch == 6:
             return r"CirPathMode\Wrist56;"
-        assert False, "Invalid CirPathMode switch"
+        raise Exception("Invalid CirPathMode switch")
 
     _append_method_doc = ""
 

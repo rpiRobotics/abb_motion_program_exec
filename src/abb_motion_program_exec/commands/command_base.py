@@ -20,7 +20,8 @@ class command_append_method:
         self.__doc__ = command_cls._append_method_doc
 
     def __get__(self, obj, cls=None):
-        assert obj is not None
+        if obj is None:
+            raise Exception("command_append_method must be called on an instance")
 
         def command_append_func(*args, **kwargs):
             cmd = self._command_cls(*args, **kwargs)

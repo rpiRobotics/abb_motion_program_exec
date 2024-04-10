@@ -86,12 +86,14 @@ def cmd_get_arg(cmd, arg_name, default_value = cmd_arg_no_default):
     val = getattr(cmd, arg_name, cmd_get_arg_sentinel)
     if val is cmd_get_arg_sentinel:
         freeform_args = getattr(cmd, "command_args", cmd_get_arg_sentinel)
-        assert freeform_args is not cmd_get_arg_sentinel, f"Invalid command type, missing argument {arg_name}"
+        if freeform_args is cmd_get_arg_sentinel:
+            raise Exception(f"Invalid command type, missing argument {arg_name}")
 
         val = freeform_args.get(arg_name, cmd_get_arg_sentinel)
         if val is cmd_get_arg_sentinel and default_value is not cmd_arg_no_default:
             return default_value
-        assert val is not cmd_get_arg_sentinel, f"Invalid command type, missing argument {arg_name}"
+        if val is cmd_get_arg_sentinel:
+            raise Exception(f"Invalid command type, missing argument {arg_name}")
 
     if isinstance(val, RR.VarValue):
         val = val.data
@@ -159,7 +161,7 @@ class SetToolCommandConv:
     freeform_names = ["SetTool", "SetToolCommand", "experimental.robotics.motion_program.SetToolCommand"]
 
     def apply_rr_command(self, cmd, mp, **kwargs):
-        assert False, "Unsupported in motion command section"
+        raise Exception("Unsupported in motion command section")
 
     def add_setup_args(self, cmd, setup_args):
         abb_tool = rr_tool_to_abb(cmd_get_arg(cmd,"tool_info"))
@@ -170,7 +172,7 @@ class SetPayloadCommandConv:
     freeform_names = ["SetPayload", "SetPayloadCommand", "experimental.robotics.motion_program.SetPayloadCommand"]
 
     def apply_rr_command(self, cmd, mp, **kwargs):
-        assert False, "Unsupported in motion command section"
+        raise Exception("Unsupported in motion command section")
 
     def add_setup_args(self, cmd, setup_args):
         abb_payload = rr_payload_to_abb(cmd_get_arg(cmd,"payload_info"),cmd_get_arg(cmd,"payload_pose"))
@@ -197,7 +199,7 @@ class CirPathModeCommandConv:
         elif rr_switch == 6 or rr_switch == "Wrist56":
             switch = abb_exec.CirPathModeSwitch.Wrist56
         else:
-            assert False, f"Invalid CirPathModeSwitch value: {rr_switch}"
+            raise Exception(f"Invalid CirPathModeSwitch value: {rr_switch}")
         mp.CirPathMode(switch)
 
 class SyncMoveOnCommandConv:
@@ -221,7 +223,7 @@ class EGMStreamConfigCommandConv:
     freeform_names = ["EGMStreamConfig", "EGMStreamConfigCommand", "experimental.abb_robot.motion_program.EGMStreamConfigCommand"]
 
     def apply_rr_command(self, cmd, mp, **kwargs):
-        assert False, "Unsupported in motion command section"
+        raise Exception("Unsupported in motion command section")
 
     def add_setup_args(self, cmd, setup_args):
         setup_args["egm_config"] = abb_exec.EGMStreamConfig()
@@ -238,7 +240,7 @@ def rr_egmframetype_to_abb(rr_egmframetype):
     elif rr_egmframetype == 4 or rr_egmframetype == "EGM_FRAME_JOINT":
         return abb_exec.egmframetype.EGM_FRAME_JOINT
     else:
-        assert False, f"Invalid egmframetype value: {rr_egmframetype}"
+        raise Exception(f"Invalid egmframetype value: {rr_egmframetype}")
 
 def rr_egmminmax_to_abb(rr_egmminmax):
     if not isinstance(rr_egmminmax, RR.VarValue):
@@ -255,7 +257,7 @@ class EGMJointTargetConfigCommandConv:
     freeform_names = ["EGMJointTargetConfig", "EGMJointTargetConfigCommand", "experimental.abb_robot.motion_program.EGMJointTargetConfigCommand"]
 
     def apply_rr_command(self, cmd, mp, **kwargs):
-        assert False, "Unsupported in motion command section"
+        raise Exception("Unsupported in motion command section")
 
     def add_setup_args(self, cmd, setup_args):
         J1 = rr_egmminmax_to_abb(cmd_get_arg(cmd, "J1"))
@@ -274,7 +276,7 @@ class EGMPoseTargetConfigCommandConv:
     freeform_names = ["EGMPoseTargetConfig", "EGMPoseTargetConfigCommand", "experimental.abb_robot.motion_program.EGMPoseTargetConfigCommand"]
 
     def apply_rr_command(self, cmd, mp, **kwargs):
-        assert False, "Unsupported in motion command section"
+        raise Exception("Unsupported in motion command section")
 
     def add_setup_args(self, cmd, setup_args):
         corr_frame = rr_pose_to_abb(cmd_get_arg(cmd, "corr_frame"))
@@ -297,7 +299,7 @@ class EGMPathCorrectionConfigCommandConv:
     freeform_names = ["EGMPathCorrectionConfig", "EGMPathCorrectionConfigCommand", "experimental.abb_robot.motion_program.EGMPathCorrectionConfigCommand"]
 
     def apply_rr_command(self, cmd, mp, **kwargs):
-        assert False, "Unsupported in motion command section"
+        raise Exception("Unsupported in motion command section")
 
     def add_setup_args(self, cmd, setup_args):
         sensor_frame = rr_pose_to_abb(cmd_get_arg(cmd, "sensor_frame"))
@@ -360,7 +362,7 @@ class SetWorkObjectCommandConv:
     freeform_names = ["SetWorkObject", "SetWorkObjectCommand", "experimental.abb_robot.motion_program.SetWorkObjectCommand"]
 
     def apply_rr_command(self, cmd, mp, **kwargs):
-        assert False, "Unsupported in motion command section"
+        raise Exception("Unsupported in motion command section")
 
     def add_setup_args(self, cmd, setup_args):
         abb_wobj = rr_workobject_to_abb(cmd_get_arg(cmd,"workobject_info"))
@@ -412,11 +414,12 @@ def get_command_conv(cmd):
             if cmd.data.optional:
                 raise OptionalCommandException(f"Optional command {cmd.data.command_name}")
             else:
-                assert False, f"Unknown command {cmd.data.command_name}"
+                raise Exception(f"Unknown command {cmd.data.command_name}")
         return conv
     else:
         conv = _command_convs.get(cmd.datatype, None)
-        assert conv is not None, f"Unknown command {cmd.datatype}"
+        if conv is None:
+            raise Exception(f"Unknown command {cmd.datatype}")
         return conv
 
 def apply_rr_motion_command_to_mp(cmd, mp, **kwargs):
@@ -461,7 +464,8 @@ def is_rr_motion_program_multimove(rr_mp):
     
     if groups.datatype == "string":
         return False
-    assert groups.datatype == "varvalue{list}", "Invalid groups type"
+    if not groups.datatype == "varvalue{list}":
+        raise Exception("Invalid groups type")
     return len(groups.data) > 1
 
 def get_rr_motion_program_task(rr_mp, default_task = "T_ROB1"):
@@ -476,14 +480,16 @@ def get_rr_motion_program_task(rr_mp, default_task = "T_ROB1"):
     if groups.datatype == "string":
         return groups.data
     else:
-        assert groups.datatype == "varvalue{list}"
-        assert len(groups) == 1, "Multiple tasks not expected"
+        if not groups.datatype == "varvalue{list}":
+            raise Exception("Invalid groups type. Expected varvalue{list}")
+        if not len(groups) == 1:
+            raise Exception("Multiple tasks not expected")
         if groups.data[0].datatype == "string":
             return groups.data[0].data
         elif groups.data[0].datatype == "int32[]" or groups.data[0].datatype == "uint32[]":
             return f"T_ROB{groups.data[0].data[0]+1}"
         else:
-            assert False, "Invalid task type"
+            raise Exception("Invalid task type")
     
 def rr_motion_program_to_abb2(program, robots):
     if (is_rr_motion_program_multimove(program)):
@@ -491,7 +497,8 @@ def rr_motion_program_to_abb2(program, robots):
     task = get_rr_motion_program_task(program)
 
     robot_ind_match = re.match(r"T_ROB(\d+)", task)
-    assert robot_ind_match is not None, "Invalid task name"
+    if robot_ind_match is None:
+        raise Exception("Invalid task name")
     robot_ind = int(robot_ind_match.group(1))-1
 
     rox_robot = robots[robot_ind]
@@ -501,25 +508,30 @@ def rr_motion_program_to_abb2(program, robots):
 def rr_multimove_motion_program_to_abb(program, robots):
     motion_programs = [program]
     multi_programs = program.extended.get("multi_motion_programs", None)
-    assert multi_programs is not None, "Invalid multimove motion program"
-    assert multi_programs.datatype == "varvalue{list}", "Invalid multimove motion program"
+    if multi_programs is None:
+        raise Exception("Invalid multimove motion program")
+    if not multi_programs.datatype == "varvalue{list}":
+        raise Exception("Invalid multimove motion program")
     for mp in multi_programs.data:
-        assert mp.datatype == "experimental.robotics.motion_program.MotionProgram", "Invalid multimove motion program"
+        if not mp.datatype == "experimental.robotics.motion_program.MotionProgram":
+            raise Exception("Invalid multimove motion program")
         motion_programs.append(mp.data)
 
     groups = program.extended.get("groups", None)
-    assert groups is not None, "Invalid multimove motion program"
+    if groups is None:
+        raise Exception("Invalid multimove motion program")
     if groups.datatype == "int32[]" or groups.datatype == "uint32[]":
         tasks = [f"T_ROB{x+1}" for x in groups.data]
     elif groups.datatype == "varvalue{list}":
         tasks = [x.data for x in groups.data]
     else:
-        assert False, "Invalid multimove motion program"
+        raise Exception("Invalid multimove motion program")
         
     programs = []
     for i in range(len(motion_programs)):
         robot_ind_match = re.match(r"T_ROB(\d+)", tasks[i])
-        assert robot_ind_match is not None, "Invalid task name"
+        if robot_ind_match is None:
+            raise Exception("Invalid task name")
         robot_ind = int(robot_ind_match.group(1))-1
         rox_robot = robots[robot_ind]
         programs.append(rr_motion_program_to_abb(motion_programs[i], rox_robot))
