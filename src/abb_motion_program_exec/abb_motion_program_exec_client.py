@@ -40,7 +40,8 @@ class MotionProgramResultLog(NamedTuple):
 def _unpack_motion_program_result_log(b: bytes):
     f = io.BytesIO(b)
     file_ver = util.read_num(f)
-    assert file_ver == MOTION_PROGRAM_FILE_VERSION
+    if not file_ver == MOTION_PROGRAM_FILE_VERSION:
+        raise Exception(f"Invalid file version {file_ver}")
     timestamp_str = util.read_str(f)
     header_str = util.read_str(f)
     headers = header_str.split(",")
@@ -50,7 +51,8 @@ def _unpack_motion_program_result_log(b: bytes):
 
 def _get_motion_program_file(path: str, motion_program: "MotionProgram", task="T_ROB1", preempt_number=None, seqno = None):
     b = motion_program.get_program_bytes(seqno)
-    assert len(b) > 0, "Motion program must not be empty"
+    if not len(b) > 0:
+        raise Exception("Motion program must not be empty")
     ramdisk = path
     filename = f"{ramdisk}/motion_program"
     if task != "T_ROB1":
@@ -111,7 +113,8 @@ class MotionProgram:
 
         if timestamp is None:
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S-%f")[:-2]
-        assert re.match(r"^\d{4}\-\d{2}\-\d{2}-\d{2}\-\d{2}\-\d{2}\-\d{4}$", timestamp)
+        if not re.match(r"^\d{4}\-\d{2}\-\d{2}-\d{2}\-\d{2}\-\d{2}\-\d{4}$", timestamp):
+            raise Exception("Invalid timestamp format. Must be YYYY-MM-DD-HH-MM-SS-MSMS")
 
         self._timestamp = timestamp
         
@@ -333,10 +336,11 @@ class MotionProgramExecClient:
         if tasks is None:
             tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
 
-        assert len(motion_programs) == len(tasks), \
-            "Motion program list and task list must have some length"
+        if not len(motion_programs) == len(tasks):
+            raise Exception("Motion program list and task list must have some length")
 
-        assert len(tasks) > 1, "Multimove program must have at least two tasks"
+        if not len(tasks) > 1:
+            raise Exception("Multimove program must have at least two tasks")
 
         b = []
         filenames = []
@@ -347,8 +351,10 @@ class MotionProgramExecClient:
             filenames.append(filename1)
             b.append(b1)
 
-        assert len(b) > 0, "Motion program must not be empty"
-        assert len(filenames) == len(b)
+        if not len(b) > 0:
+            raise Exception("Motion program must not be empty")
+        if not len(filenames) == len(b):
+            raise Exception("Filename list and binary list must have same length")
         def _upload():
             for i in range(len(filenames)):
                 self.abb_client.upload_file(filenames[i], b[i])
@@ -376,10 +382,11 @@ class MotionProgramExecClient:
         if tasks is None:
             tasks = [f"T_ROB{i+1}" for i in range(len(motion_programs))]        
 
-        assert len(motion_programs) == len(tasks), \
-            "Motion program list and task list must have some length"
+        if not len(motion_programs) == len(tasks):
+            raise Exception("Motion program list and task list must have some length")
 
-        assert len(tasks) > 1, "Multimove program must have at least two tasks"
+        if not len(tasks) > 1:
+            raise Exception("Multimove program must have at least two tasks")
 
         b = []
         filenames = []
@@ -398,10 +405,12 @@ class MotionProgramExecClient:
     def _download_and_start_motion_program(self, tasks, upload_fn: Callable[[],None]):
         
         exec_state = self.abb_client.get_execution_state()
-        assert exec_state.ctrlexecstate == "stopped"
+        if not exec_state.ctrlexecstate == "stopped":
+            raise Exception("Controller must be stopped to execute motion program")
         #assert exec_state.cycle == "once"
         ctrl_state = self.abb_client.get_controller_state()
-        assert ctrl_state == "motoron"
+        if not ctrl_state == "motoron":
+            raise Exception("Controller must be motoron to execute motion program")
 
         log_before = self.abb_client.read_event_log()
         prev_seqnum = log_before[0].seqnum
@@ -452,12 +461,12 @@ class MotionProgramExecClient:
         for l in log_after:
             if l.msgtype >= 2:
                 if len(l.args) > 0 and l.args[0].lower() == "motion program failed":
-                    assert False, l.args[1] + " " + l.args[2] + " " + l.args[3] + " " + l.args[4]
+                    raise Exception(l.args[1] + " " + l.args[2] + " " + l.args[3] + " " + l.args[4])
             if l.msgtype >= 3:
                 failed = True
 
         if failed:
-            assert False, "Motion Program Failed, see robot error log for details"
+            raise Exception("Motion Program Failed, see robot error log for details")
 
         found_log_open = False
         found_log_close = False
@@ -467,17 +476,21 @@ class MotionProgramExecClient:
             if l.code == 80003:
                 if l.args[0].lower() == "motion program log file closed":
                     if found_log_open:
-                        assert not found_log_close, "Found more than one log closed message"
+                        if found_log_close:
+                            raise Exception("Found more than one log closed message")
                         found_log_close = True
                 
                 if l.args[0].lower() == "motion program log file opened":
-                    assert not found_log_open, "Found more than one log opened message"
+                    if found_log_open:
+                        raise Exception("Found more than one log opened message")
                     found_log_open = True
                     log_filename_m = re.search(r"(log\-[\d\-]+\.bin)",l.args[1])
-                    assert log_filename_m, "Invalid log opened message"
+                    if not log_filename_m:
+                        raise Exception("Invalid log opened message")
                     log_filename = log_filename_m.group(1)
 
-        assert found_log_open and found_log_close and len(log_filename) > 0, "Could not find log file messages in robot event log"
+        if not (found_log_open and found_log_close and len(log_filename) > 0):
+            raise Exception("Could not find log file messages in robot event log")
 
         ramdisk = self.abb_client.get_ramdisk_path()
         log_contents = self.abb_client.read_file(f"{ramdisk}/{log_filename}")

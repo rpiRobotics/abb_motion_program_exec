@@ -234,4 +234,4 @@ def write_egm_config(f: io.IOBase,
         f.write(util.num_to_bin(3))
         f.write(_egm_path_correction_config_to_bin(egm_config))
     else:
-        assert False, "Invalid EGM configuration"
+        raise Exception("Invalid EGM configuration")

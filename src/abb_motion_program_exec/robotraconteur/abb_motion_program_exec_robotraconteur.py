@@ -44,7 +44,8 @@ class MotionExecImpl:
 
     def execute_motion_program(self, program, queue):
 
-        assert queue is False, "Motion program queue not supported"
+        if queue:
+            raise Exception("Motion program queue not supported")
 
         abb_program, is_multimove, tasks = rr_motion_program_to_abb2(program, self._rox_robots)
 
@@ -54,7 +55,8 @@ class MotionExecImpl:
 
     def execute_motion_program_record(self, program, queue):
 
-        assert queue is False, "Motion program queue not supported"
+        if queue:
+            raise Exception("Motion program queue not supported")
 
         abb_program, is_multimove, tasks = rr_motion_program_to_abb2(program, self._rox_robots)
 
