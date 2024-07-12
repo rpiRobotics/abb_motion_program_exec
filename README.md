@@ -440,7 +440,7 @@ plt.show()
 
 ```
 
-# Robot Raconteur Service
+## Robot Raconteur Service
 
 A Robot Raconteur service is available to allow a client to execute multi-move programs. The service
 uses a standards track service definition `experimental.robotics.motion_program` that will provide interoperability
@@ -477,6 +477,14 @@ Examples for a single robot and multi-move robots are in the `examples/robotraco
 programs make heavy use of `varvalue` types to allow for flexibility in the motion program contents.
 The Python type `RR.VarValue` is used to represent the `varvalue` type. See the Robot Raconteur Python documentation
 for more inforamtion on how `RR.VarValue` works and why it is necessary.
+
+### Connection Info
+
+* URL: `rr+tcp://localhost:59843?service=mp_robot`
+* Node Name: `experimental.robotics.motion_program`
+* Device Name: `abb_robot`
+* Service Name: `mp_robot`
+* Root Object Type: `experimental.robotics.motion_program.MotionProgramRobot`
 
 ## License
 
