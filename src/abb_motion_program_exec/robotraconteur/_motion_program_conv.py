@@ -146,7 +146,7 @@ class MoveCCommandConv:
         zd = rr_zone_to_abb(cmd_get_arg(cmd,"fine_point"),cmd_get_arg(cmd,"blend_radius"))
         sd = rr_speed_to_abb(cmd_get_arg(cmd,"tcp_velocity"))
         rt = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_pose"), cfx_robot, cmd_get_extended(cmd, "confdata"))
-        rt2 = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_via_pose"), cfx_robot, cmd_get_extended( "confdata_via"))
+        rt2 = rr_robot_pose_to_abb(cmd_get_arg(cmd,"tcp_via_pose"), cfx_robot, cmd_get_extended(cmd, "confdata_via"))
         mp.MoveC(rt2, rt,  sd, zd)
 
 class WaitTimeCommandConv:
