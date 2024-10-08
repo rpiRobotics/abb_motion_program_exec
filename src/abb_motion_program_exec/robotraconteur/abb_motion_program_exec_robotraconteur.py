@@ -18,6 +18,7 @@ import time
 import io
 import random
 import drekar_launch_process
+import yaml
 
 class MotionExecImpl:
     def __init__(self, mp_robot_info, base_url, username, password):
@@ -161,9 +162,16 @@ def main():
 
     with args.mp_robot_info_file:
         mp_robot_info_text = args.mp_robot_info_file.read()
+        mp_robot_info_dict = yaml.safe_load(mp_robot_info_text)
+        # Workaround to allow loading from normal robot info file
+        if 'robot_info' not in mp_robot_info_dict:
+            d = {
+                "robot_info": mp_robot_info_dict
+            }
+            mp_robot_info_dict = d
 
     info_loader = InfoFileLoader(RRN)
-    mp_robot_info, mp_robot_ident_fd = info_loader.LoadInfoFileFromString(mp_robot_info_text, "experimental.robotics.motion_program.MotionProgramRobotInfo", "mp_robot")
+    mp_robot_info, mp_robot_ident_fd = info_loader.LoadInfoFileFromDict(mp_robot_info_dict, "experimental.robotics.motion_program.MotionProgramRobotInfo", "mp_robot")
 
     attributes_util = AttributesUtil(RRN)
     mp_robot_attributes = attributes_util.GetDefaultServiceAttributesFromDeviceInfo(mp_robot_info.robot_info.device_info)
