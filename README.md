@@ -49,6 +49,9 @@ python3 -m pip install --user abb-motion-program-exec
 
 ## Usage
 
+**The robot must be in "Auto" mode for this driver to operate. A non-descriptive error code will be
+returned if attempting to execute a motion program in manual mode.**
+
 Once the `abb_motion_program_exec.mod` has been loaded on the controller,
 the Python module can be used to command motion sequences. The class
 `MotionProgram` contains is used to build the sequence of motions. It has
