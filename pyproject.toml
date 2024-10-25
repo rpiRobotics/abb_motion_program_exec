@@ -33,7 +33,8 @@ test = [
 robotraconteur = [
     "robotraconteur",
     "robotraconteurcompanion",
-    "drekar-launch-process"
+    "drekar-launch-process",
+    "robotraconteur-abstract-robot"
 ]
 
 [tool.setuptools.package-data]
