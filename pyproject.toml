@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "abb_motion_program_exec"
-version = "0.7.3"
+version = "0.7.4"
 authors = [
     {name ="John Wason", email = "wason@wasontech.com"}
 ]
