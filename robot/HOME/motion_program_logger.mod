@@ -22,6 +22,7 @@ MODULE motion_program_logger
         
         VAR num mechunit_listnum:=0;
         VAR string mechunit_name:="";
+        VAR bool mechunit_is_robot:=FALSE;
                 
         CONNECT rmqint_open WITH rmq_message_string;
         IRMQMessage rmq_req, rmqint_open;
@@ -29,8 +30,10 @@ MODULE motion_program_logger
         CONNECT logger_err_interrupt WITH err_handler;
         IError COMMON_ERR, TYPE_ERR, logger_err_interrupt;
         
-        WHILE GetNextMechUnit(mechunit_listnum, mechunit_name) DO
-            robot_count:=robot_count+1;
+        WHILE GetNextMechUnit(mechunit_listnum, mechunit_name\TCPRob:=mechunit_is_robot) DO
+            IF mechunit_is_robot THEN
+                robot_count:=robot_count+1;
+            ENDIF
         ENDWHILE
        
         ClkReset time_stamp_clock;
