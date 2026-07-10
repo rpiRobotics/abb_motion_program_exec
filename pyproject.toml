@@ -25,6 +25,7 @@ repository = "https://github.com/rpiRobotics/abb_motion_program_exec"
 
 [project.scripts]
 abb-motion-program-exec-robotraconteur = "abb_motion_program_exec.robotraconteur.abb_motion_program_exec_robotraconteur:main"
+abb-motion-program-exec-robotstudio-setup = "abb_motion_program_exec.robotstudio_setup.__main__:main"
 
 [project.optional-dependencies]
 test = [
@@ -37,5 +38,37 @@ robotraconteur = [
     "robotraconteur-abstract-robot"
 ]
 
+[tool.setuptools]
+packages = [
+	"abb_motion_program_exec",
+	"abb_motion_program_exec.robotstudio_setup",
+	"abb_motion_program_exec.commands",
+	"abb_motion_program_exec.robotraconteur",
+	"abb_motion_program_exec.robotstudio_setup.robot",
+	"abb_motion_program_exec.robotstudio_setup.robot.config_params",
+	"abb_motion_program_exec.robotstudio_setup.robot.config_params_egm",
+	"abb_motion_program_exec.robotstudio_setup.robot.config_params_multimove",
+	"abb_motion_program_exec.robotstudio_setup.robot.HOME",
+	"abb_motion_program_exec.robotstudio_setup.robot.autosetup",
+	]
+
+[tool.setuptools.package-dir]
+"abb_motion_program_exec" = "src/abb_motion_program_exec"
+"abb_motion_program_exec.commands" = "src/abb_motion_program_exec/commands"
+"abb_motion_program_exec.robotraconteur" = "src/abb_motion_program_exec/robotraconteur"
+"abb_motion_program_exec.robotstudio_setup" = "src/abb_motion_program_exec/robotstudio_setup"
+"abb_motion_program_exec.robotstudio_setup.robot" = "robot"
+"abb_motion_program_exec.robotstudio_setup.robot.config_params" = "robot/config_params"
+"abb_motion_program_exec.robotstudio_setup.robot.config_params_egm" = "robot/config_params_egm"
+"abb_motion_program_exec.robotstudio_setup.robot.config_params_multimove" = "robot/config_params_multimove"
+"abb_motion_program_exec.robotstudio_setup.robot.HOME" = "robot/HOME"
+"abb_motion_program_exec.robotstudio_setup.robot.autosetup" = "robot/autosetup"
+
+
 [tool.setuptools.package-data]
 "abb_motion_program_exec.robotraconteur" = ["*.robdef"]
+"abb_motion_program_exec.robotstudio_setup.robot.config_params" = ["*.*"]
+"abb_motion_program_exec.robotstudio_setup.robot.config_params_egm" = ["*.*"]
+"abb_motion_program_exec.robotstudio_setup.robot.config_params_multimove" = ["*.*"]
+"abb_motion_program_exec.robotstudio_setup.robot.HOME" = ["*.*"]
+"abb_motion_program_exec.robotstudio_setup.robot.autosetup" = ["*.*"]

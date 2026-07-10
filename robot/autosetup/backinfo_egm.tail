@@ -1,0 +1,17 @@
+>>TASK0: (TASKSHARED,,)
+
+>>TASK1: (T_ROB1,,)
+SYSMOD\user.sys @ 
+PROGMOD\motion_program_exec_egm.mod @ 
+PROGMOD\motion_program_exec.mod @ 
+
+>>TASK2: (logger,,)
+SYSMOD\user.sys @ 
+PROGMOD\motion_program_logger.mod @ 
+
+>>TASK3: (error_reporter,,)
+PROGMOD\error_reporter.mod @ 
+SYSMOD\user.sys @ 
+
+
+>>EOF:
